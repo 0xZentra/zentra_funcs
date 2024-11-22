@@ -1,11 +1,13 @@
 
 import hashlib
 import json
+import getpass
 
 import web3
+import eth_account
 
 
-PROVIDER_HOST = 'http://127.0.0.1:8545'
+PROVIDER_HOST = 'http://127.0.0.1:8045'
 
 w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 
@@ -34,7 +36,10 @@ def function_vote(info, args):
 
 
 if __name__ == '__main__':
-    account = setting.account
+    ps = getpass.getpass()
+    js = open('account.json', 'r').read()
+    sk = eth_account.Account.decrypt(json.loads(js), ps)
+    account = eth_account.Account.from_key(sk)
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
