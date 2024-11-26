@@ -6,6 +6,7 @@ import getpass
 import web3
 import eth_account
 
+import setting
 
 PROVIDER_HOST = 'http://127.0.0.1:8545'
 
@@ -16,10 +17,7 @@ handle_purchase_sourcecode = open('../funcs/handle_purchase.py', 'r').read()
 
 
 if __name__ == '__main__':
-    ps = getpass.getpass()
-    js = open('account.json', 'r').read()
-    sk = eth_account.Account.decrypt(json.loads(js), ps)
-    account = eth_account.Account.from_key(sk)
+    account = setting.account
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 

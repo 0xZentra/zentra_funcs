@@ -20,10 +20,6 @@ if __name__ == '__main__':
     # function_proposal in global state
     # function_vote in global state
 
-    # ps = getpass.getpass()
-    # js = open('account.json', 'r').read()
-    # sk = eth_account.Account.decrypt(json.loads(js), ps)
-    # account = eth_account.Account.from_key(sk)
     account = setting.account
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
