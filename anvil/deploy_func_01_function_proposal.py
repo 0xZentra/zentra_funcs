@@ -12,6 +12,7 @@ PROVIDER_HOST = 'http://127.0.0.1:8545'
 
 w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 
+
 function_proposal_sourcecode = open('../funcs/function_proposal.py', 'r').read()
 
 if __name__ == '__main__':
