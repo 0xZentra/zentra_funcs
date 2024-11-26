@@ -1,7 +1,7 @@
 
 def function_proposal(info, args):
     assert args['f'] == 'function_proposal'
-    sender = info['sender'].lower()
+    sender = info['sender']
     handle = handle_lookup(sender)
     fname = args['a'][0]
     assert set(fname) <= set(string.ascii_lowercase+'_')

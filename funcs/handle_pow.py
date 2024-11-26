@@ -18,7 +18,7 @@ def handle_pow(info, args):
     timestamp = int(t[6:8]+t[4:6]+t[2:4]+t[0:2], 16)
     print('timestamp', timestamp)
     asset = 'handle'
-    sender = info['sender'].lower()
+    sender = info['sender']
 
     recent = get(asset, 'recent', [])
     recent_change = False

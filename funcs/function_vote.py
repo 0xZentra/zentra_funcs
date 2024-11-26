@@ -1,7 +1,7 @@
 
 def function_vote(info, args):
     assert args['f'] == 'function_vote'
-    sender = info['sender'].lower()
+    sender = info['sender']
     handle = handle_lookup(sender)
     committee_members = set(get('committee', 'members', []))
     assert handle in committee_members
@@ -15,6 +15,5 @@ def function_vote(info, args):
 
     if len(votes) >= len(committee_members)*2//3:
         put(handle, 'function', 'code', proposal, fname)
-        global_state.put(('zen-code-function:%s' % (fname, )).encode('utf8'), proposal["sourcecode"].encode('utf8'))
     else:
         put(handle, 'function', 'proposal', proposal, '%s:%s' % (fname, sourcecode_hexdigest))
