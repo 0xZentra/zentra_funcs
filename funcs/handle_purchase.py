@@ -8,6 +8,11 @@ def handle_purchase(info, args):
     assert len(handle) > 4 and len(handle) < 42
 
     handles = get('handle', 'addr2handles', [], sender)
+    if not handles:
+        put(handle, 'handle', 'default', handle, sender)
+
     if handle not in handles:
         handles.append(handle)
-        put(sender, 'handle', 'addr2handles', handles, sender)
+        put(handle, 'handle', 'addr2handles', handles, sender)
+
+    put(handle, 'handle', 'handle2addr', sender, handle)

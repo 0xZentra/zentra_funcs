@@ -32,7 +32,7 @@ def handle_pow(info, args):
         block_reward = get(asset, 'block', {}, blockhash_to_reward)
         for handle_reward, (header_reward, nonce_reward) in block_reward.items():
             header_reward, nonce_reward = block_reward[handle_reward]
-            c1 = hashlib.sha256(bytes.fromhex(header_reward) + nonce_reward.to_bytes(4, byteorder='little')).digest()
+            c1 = hashlib.sha256(bytes.fromhex(header_reward) + nonce_reward.to_bytes(4, 'little')).digest()
             c2 = hashlib.sha256(c1).digest()
             c_int = int.from_bytes(bytes.fromhex(c2.hex()), 'little')
             total = get(asset, 'total', 0, handle_reward)
@@ -50,13 +50,13 @@ def handle_pow(info, args):
     block = get(asset, 'block', {}, blockhash)
     if block.get(handle):
         prev_header, prev_nonce = block[handle]
-        p1 = hashlib.sha256(bytes.fromhex(prev_header) + prev_nonce.to_bytes(4, byteorder='little')).digest()
+        p1 = hashlib.sha256(bytes.fromhex(prev_header) + prev_nonce.to_bytes(4, 'little')).digest()
         p2 = hashlib.sha256(p1).digest()
         p_int = int.from_bytes(bytes.fromhex(p2.hex()), 'little')
     else:
         p_int = 2**256
 
-    h1 = hashlib.sha256(bytes.fromhex(header) + nonce.to_bytes(4, byteorder='little')).digest()
+    h1 = hashlib.sha256(bytes.fromhex(header) + nonce.to_bytes(4, 'little')).digest()
     h2 = hashlib.sha256(h1).digest()
     h_int = int.from_bytes(bytes.fromhex(h2.hex()), 'little')
     if h_int < p_int:
