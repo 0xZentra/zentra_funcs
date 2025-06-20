@@ -10,9 +10,8 @@ import eth_account
 
 import setting
 
-# PROVIDER_HOST = 'http://127.0.0.1:8545'
-PROVIDER_HOST = 'https://mainnet.optimism.io'
-CHAIN_ID = 10
+PROVIDER_HOST = 'https://mainnet.base.org'
+CHAIN_ID = 8453
 
 w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 w3.eth.set_gas_price_strategy(web3.gas_strategies.time_based.medium_gas_price_strategy)
