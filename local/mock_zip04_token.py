@@ -41,6 +41,11 @@ if __name__ == '__main__':
     vote(height, 'token_mint')
 
     height += 1
+    proposal(height, 'token_burn')
+    height += 1
+    vote(height, 'token_burn')
+
+    height += 1
     proposal(height, 'transfer')
     height += 1
     vote(height, 'transfer')

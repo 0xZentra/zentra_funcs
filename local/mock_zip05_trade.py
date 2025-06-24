@@ -26,10 +26,26 @@ if __name__ == '__main__':
     print(height)
 
     height += 1
-    proposal(height, 'function_proposal')
+    proposal(height, 'trade_limit_order')
     height += 1
-    vote(height, 'function_proposal')
+    vote(height, 'trade_limit_order')
+
     height += 1
-    proposal(height, 'function_vote')
+    proposal(height, 'trade_market_order')
     height += 1
-    vote(height, 'function_vote')
+    vote(height, 'trade_market_order')
+
+    height += 1
+    proposal(height, 'trade_order_cancel')
+    height += 1
+    vote(height, 'trade_order_cancel')
+
+    height += 1
+    proposal(height, 'trade_pair_create')
+    height += 1
+    vote(height, 'trade_pair_create')
+
+    height += 1
+    proposal(height, 'trade_set_quote_token')
+    height += 1
+    vote(height, 'trade_set_quote_token')
