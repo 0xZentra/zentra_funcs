@@ -17,6 +17,10 @@ def token_create(info, args):
     assert decimal >= 0 and decimal <= 18
 
     functions = ['transfer', 'approve', 'transfer_from', 'token_mint_once', 'asset_update_ownership', 'asset_update_functions']
+    if len(args['a']) == 4:
+        functions = args['a'][3]
+        assert type(functions) is list
+
     put(addr, tick, 'name', name)
     put(addr, tick, 'decimal', decimal)
     put(addr, 'asset', 'functions', functions, tick)

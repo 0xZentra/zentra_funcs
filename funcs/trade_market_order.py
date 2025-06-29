@@ -16,7 +16,8 @@ def trade_market_order(info, args):
     trade_buy_start = get('trade', f'{pair}_buy_start', 1)
 
     K = 10**18
-    if quote_value is None and base_value < 0:
+    if quote_value is None and int(base_value) < 0:
+        base_value = int(args['a'][1])
         balance = get(base_tick, 'balance', 0, addr)
         # print('base_tick balance', balance, addr)
         balance += base_value
@@ -67,7 +68,8 @@ def trade_market_order(info, args):
         assert balance >= 0
         put(addr, base_tick, 'balance', balance, addr)
 
-    elif base_value is None and quote_value < 0:
+    elif base_value is None and int(quote_value) < 0:
+        quote_value = int(args['a'][3])
         balance = get(quote_tick, 'balance', 0, addr)
         # print('quote_tick balance', balance, quote_value, balance + quote_value)
         balance += quote_value
