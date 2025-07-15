@@ -31,7 +31,7 @@ if __name__ == '__main__':
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 210000,
+        'gas': 392080,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
