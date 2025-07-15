@@ -1,3 +1,4 @@
+
 def trade_limit_order(info, args):
     assert args['f'] == 'trade_limit_order'
     sender = info['sender']
@@ -36,6 +37,8 @@ def trade_limit_order(info, args):
         while True:
             sell = get('trade', f'{pair}_sell', None, str(trade_sell_no))
             price = - quote_value * K // base_value
+
+            # the first order
             if sell is None:
                 put(addr, 'trade', f'{pair}_sell', [addr, base_value, quote_value, price, None, None], str(trade_sell_new))
                 trade_sell_new += 1
@@ -61,6 +64,7 @@ def trade_limit_order(info, args):
                         put(addr, 'trade', f'{pair}_sell', next_sell, str(next_sell_id))
                 break
 
+            # lowest sell order
             if sell[4] is None:
                 put(addr, 'trade', f'{pair}_sell', [addr, base_value, quote_value, price, None, trade_sell_no], str(trade_sell_new))
                 put(addr, 'trade', f'{pair}_sell', [sell[0], sell[1], sell[2], sell[3], trade_sell_new, sell[5]], str(trade_sell_no))
@@ -80,6 +84,7 @@ def trade_limit_order(info, args):
         while True:
             buy = get('trade', f'{pair}_buy', None, str(trade_buy_no))
             price = - quote_value * K // base_value
+
             if buy is None:
                 buy = [addr, base_value, quote_value, price, None, None]
                 put(addr, 'trade', f'{pair}_buy', buy, str(trade_buy_new))
@@ -118,9 +123,6 @@ def trade_limit_order(info, args):
             trade_buy_no = buy[4]
 
     # MATCHING
-    sell_to_refund = []
-    buy_to_refund = []
-    sell_to_remove = set([])
     # trade_buy_start = get('trade', f'{pair}_buy_start', 1)
     # trade_sell_start = get('trade', f'{pair}_sell_start', 1)
     # print('trade_buy_start', trade_buy_start, 'trade_sell_start', trade_sell_start)
@@ -137,7 +139,6 @@ def trade_limit_order(info, args):
         if highest_buy_price and sell_price > highest_buy_price:
             # print('highest_buy_price', highest_buy_price)
             break
-        buy_to_remove = set([])
 
         trade_buy_no = trade_buy_start
         while True:
@@ -173,10 +174,29 @@ def trade_limit_order(info, args):
             put(sell[0], quote_tick, 'balance', balance, sell[0])
 
             if buy[1] == 0:
-                buy_to_remove.add(trade_buy_no)
+                if buy[4]:
+                    prev_buy = get('trade', f'{pair}_buy', None, str(buy[4]))
+                    prev_buy[5] = buy[5]
+                    put(prev_buy[0], 'trade', f'{pair}_buy', prev_buy, str(buy[4]))
 
-                if buy[2] != 0:
-                    buy_to_refund.append(buy)
+                if buy[5]:
+                    next_buy = get('trade', f'{pair}_buy', None, str(buy[5]))
+                    next_buy[4] = buy[4]
+                    put(next_buy[0], 'trade', f'{pair}_buy', next_buy, str(buy[5]))
+
+                if buy[4] is not None and buy[5] is None:
+                    trade_buy_start = buy[4]
+                elif buy[4] is None and buy[5] is None:
+                    trade_buy_start = trade_buy_new
+
+                print(f'{pair}_buy_to_refund', buy)
+                if buy[2] < 0:
+                    balance = get(quote_tick, 'balance', 0, buy[0])
+                    balance -= buy[2]
+                    assert balance >= 0
+                    put(buy[0], quote_tick, 'balance', balance, buy[0])
+    
+                put('', 'trade', f'{pair}_buy', None, str(trade_buy_no))
             else:
                 put('', 'trade', f'{pair}_buy', buy, str(trade_buy_no))
 
@@ -186,19 +206,30 @@ def trade_limit_order(info, args):
                 break
             trade_buy_no = buy[4]
 
-        for i in buy_to_remove:
-            put('', 'trade', f'{pair}_buy', None, str(i))
-
         if sell[1] == 0:
-            sell_to_remove.add(trade_sell_no)
             if sell[4]:
                 prev_sell = get('trade', f'{pair}_sell', None, str(sell[4]))
-                prev_sell[5] = None
-                put('', 'trade', f'{pair}_sell', prev_sell, str(sell[4]))
-            trade_sell_start = sell[4] or trade_sell_new
+                prev_sell[5] = sell[5]
+                put(prev_sell[0], 'trade', f'{pair}_sell', prev_sell, str(sell[4]))
 
-            if sell[2] > 0:
-                sell_to_refund.append(sell)
+            if sell[5]:
+                next_sell = get('trade', f'{pair}_sell', None, str(sell[5]))
+                next_sell[4] = sell[4]
+                put(next_sell[0], 'trade', f'{pair}_sell', next_sell, str(sell[5]))
+
+            if sell[4] is not None and sell[5] is None:
+                trade_sell_start = sell[4]
+            elif sell[4] is None and sell[5] is None:
+                trade_sell_start = trade_sell_new
+
+            print(f'{pair}_sell_to_refund', sell)
+            if sell[1] < 0:
+                balance = get(base_tick, 'balance', 0, sell[0])
+                balance -= sell[1]
+                assert balance >= 0
+                put(sell[0], base_tick, 'balance', balance, sell[0])
+
+            put('', 'trade', f'{pair}_sell', None, str(trade_sell_no))
         else:
             put('', 'trade', f'{pair}_sell', sell, str(trade_sell_no))
 
@@ -206,16 +237,5 @@ def trade_limit_order(info, args):
             break
         trade_sell_no = sell[4]
 
-    for i in sell_to_remove:
-        put('', 'trade', f'{pair}_sell', None, str(i))
     put('', 'trade', f'{pair}_sell_start', trade_sell_start)
     put('', 'trade', f'{pair}_buy_start', trade_buy_start)
-
-    for i in buy_to_refund:
-        balance = get(quote_tick, 'balance', 0, i[0])
-        balance -= i[2]
-        assert balance >= 0
-        put(i[0], quote_tick, 'balance', balance, i[0])
-
-    # for i in sell_to_refund:
-    #     print(f'{pair}_sell_to_refund', i)
