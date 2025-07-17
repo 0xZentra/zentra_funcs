@@ -163,7 +163,7 @@ def trade_market_order(info, args):
 
             price = sell[3]
             dx_base = min(-sell[1], -quote_value * K // price)
-            dx_quote = dx * price // K
+            dx_quote = dx_base * price // K
             if dx_base == 0 or  dx_quote == 0:
                 break
             sell[1] += dx_base

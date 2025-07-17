@@ -15,7 +15,7 @@ def token_mint_once(info, args):
     handle = handle_lookup(sender)
     addr = handle or sender
 
-    total = int(args['a'][1])
+    total = value
     assert get(tick, 'total', None) is None
     put(addr, tick, 'total', total)
 
