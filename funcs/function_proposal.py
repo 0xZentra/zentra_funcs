@@ -16,16 +16,10 @@ def function_proposal(info, args):
         for j in i[1]:
             assert set(j) <= set(string.ascii_uppercase+'_')
 
-    asset_permission = args['a'][3]
-    assert type(asset_permission) is list
-    for i in asset_permission:
-        assert i == '*' or set(i) <= set(string.ascii_lowercase+'_')
-
-    invoke_permission = args['a'][4]
-    assert type(invoke_permission) is list
-    for i in invoke_permission:
-        assert i == '*' or set(i) <= set(string.ascii_lowercase+'_')
-
     hexdigest = hashlib.sha256(sourcecode.encode('utf8')).hexdigest()
     k = 'function-proposal-%s:%s' % (fname, hexdigest)
-    put(addr, 'function', 'proposal', {'sourcecode': sourcecode, 'asset_permission': asset_permission, 'require': require, 'votes': []}, '%s:%s' % (fname, hexdigest))
+    put(addr, 'function', 'proposal', {
+            'sourcecode': sourcecode,
+            'require': require, 'votes': []
+        }, '%s:%s' % (fname, hexdigest))
+
