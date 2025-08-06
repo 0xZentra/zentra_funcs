@@ -4,22 +4,24 @@ def function_proposal(info, args):
     sender = info['sender']
     handle = handle_lookup(sender)
     addr = handle or sender
-    fname = args['a'][0]
-    assert set(fname) <= set(string.ascii_lowercase+'_')
-    sourcecode = args['a'][1]
+    func_names = args['a'][0]
+    snippet_digests = args['a'][1]
+    for func_name in func_names:
+        assert set(func_name) <= set(string.ascii_lowercase+'_')
+        assert not func_name.startswith('_')
 
-    require = args['a'][2]
-    for i in require:
-        assert type(i) is list
-        assert set(i[0]) <= set(string.ascii_lowercase+'_')
-        assert type(i[1]) is list
-        for j in i[1]:
-            assert set(j) <= set(string.ascii_uppercase+'_')
+    snippet_digests = args['a'][1]
+    for snippet_digest in snippet_digests:
+        assert set(snippet_digest) <= set(string.ascii_lowercase+string.digits)
+        assert len(snippet_digest) == 64
 
-    hexdigest = hashlib.sha256(sourcecode.encode('utf8')).hexdigest()
-    k = 'function-proposal-%s:%s' % (fname, hexdigest)
+    proposal_id = get('function', 'proposal_count', 0)
+    proposal_id += 1
+    put(addr, 'function', 'proposal_count', proposal_id)
+
     put(addr, 'function', 'proposal', {
-            'sourcecode': sourcecode,
-            'require': require, 'votes': []
-        }, '%s:%s' % (fname, hexdigest))
-
+            'functions': func_names,
+            'snippets': snippet_digests,
+            'votes': []
+        }, '%s' % (proposal_id))
+    event('FunctionProposal', [proposal_id, func_names])

@@ -7,14 +7,29 @@ def function_vote(info, args):
     committee_members = set(get('committee', 'members', []))
     assert addr in committee_members
 
-    fname = args['a'][0]
-    sourcecode_hexdigest = args['a'][1]
-    proposal = get('function', 'proposal', None, '%s:%s' % (fname, sourcecode_hexdigest))
+    proposal_id = args['a'][0]
+    proposal = get('function', 'proposal', None, '%s' % proposal_id)
+    assert proposal
     votes = set(proposal['votes'])
     votes.add(addr)
     proposal['votes'] = list(votes)
 
+    # print(len(votes), len(committee_members), len(committee_members)*2//3)
     if len(votes) >= len(committee_members)*2//3:
-        put(addr, 'function', 'code', proposal, fname)
+        assert len(proposal['snippets']) > 0
+        for snippet_hash in proposal['snippets']:
+            assert set(snippet_hash) <= set(string.ascii_lowercase+string.digits)
+            snippet = get('function', 'snippet', None, snippet_hash)
+            assert snippet, "Snippet not found: %s" % snippet_hash
+            snippet['functions'].extend(proposal['functions'])
+            put('', 'function', 'snippet', snippet, snippet_hash)
+
+        assert len(proposal['functions']) > 0
+        for func_name in proposal['functions']:
+            put(addr, 'function', 'code', {
+                'snippets': proposal['snippets']
+            }, func_name)
+        event('NewFunctions', [proposal_id, proposal['functions']])
     else:
-        put(addr, 'function', 'proposal', proposal, '%s:%s' % (fname, sourcecode_hexdigest))
+        put(addr, 'function', 'proposal', proposal, '%s' % proposal_id)
+        event('FunctionVote', [proposal_id, addr])
