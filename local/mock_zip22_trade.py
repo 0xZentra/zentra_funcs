@@ -26,8 +26,8 @@ if __name__ == '__main__':
     print(height)
 
     height += 1
-    snippet(height, 'zip3')
+    snippet(height, 'zip22')
     height += 1
-    proposal(height, ['asset_create', 'asset_update_ownership', 'asset_update_functions'], ['e3ae4ab1aedacd582bca78af18a137d9ffef887d37146f5c115ae95d2d90c40d'])
+    proposal(height, ['trade_limit_order', 'trade_market_order', 'trade_limit_order_cancel', 'trade_pair_create', 'trade_set_quote_token'], ['275453fa7f22675f43408e5470eba7e07625350744a1717e54a9c39ca043c30b'])
     height += 1
-    vote(height, 3)
+    vote(height, 5)
