@@ -16,23 +16,22 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
-sourcecode = open('../funcs/zip2.py', 'r').read()
-
 if __name__ == '__main__':
     account = setting.account
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
+
     call = {'p': setting.protocol,
-            'f': 'function_proposal',
-            'a': [['function_snippet', 'function_snippet_clear', 'function_proposal', 'function_vote'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'f': "function_vote", 
+            'a': [3]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 29240,
+        'gas': 22960,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -45,5 +44,3 @@ if __name__ == '__main__':
     print(tx_hash.hex())
     # except Exception as e:
     #     pass
-    time.sleep(5)
-
