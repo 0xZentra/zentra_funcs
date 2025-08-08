@@ -71,7 +71,9 @@ def function_vote(info, args):
             assert set(snippet_hash) <= set(string.ascii_lowercase+string.digits)
             snippet, _ = get('function', 'snippet', None, snippet_hash)
             assert snippet, "Snippet not found: %s" % snippet_hash
-            snippet['functions'].extend(proposal['functions'])
+            functions = snippet['functions']
+            functions.extend(proposal['functions'])
+            snippet['functions'] = list(set(functions))
             put('', 'function', 'snippet', snippet, snippet_hash)
 
         assert len(proposal['functions']) > 0
