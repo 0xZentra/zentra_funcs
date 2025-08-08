@@ -28,6 +28,8 @@ if __name__ == '__main__':
     height += 1
     snippet(height, 'zip3')
     height += 1
-    proposal(height, ['asset_create', 'asset_update_ownership', 'asset_update_functions'], ['e3ae4ab1aedacd582bca78af18a137d9ffef887d37146f5c115ae95d2d90c40d'])
+    proposal(height,
+            ['asset_create', 'asset_update_ownership', 'asset_update_functions'],
+            ['e3ae4ab1aedacd582bca78af18a137d9ffef887d37146f5c115ae95d2d90c40d'])
     height += 1
     vote(height, 3)

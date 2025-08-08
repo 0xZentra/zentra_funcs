@@ -28,7 +28,9 @@ if __name__ == '__main__':
     height += 1
     snippet(height, 'zip20')
     height += 1
-    proposal(height, ['token_create', 'token_mint_once', 'token_mint', 'token_burn', 'token_transfer'], [''])
+    proposal(height,
+            ['token_create', 'token_mint_once', 'token_mint', 'token_burn', 'token_transfer'],
+            ['2f364fa5ebb7de5ea49c6d5b882b4a0928ca90d3658e383d25350d69ab777a8a'])
     height += 1
     vote(height, 4)
     height += 1

@@ -8,7 +8,7 @@ import eth_account
 rpc_url = 'https://sepolia.base.org'
 chain_id = 84532
 chain = 'base'
-protocol = 'zentest2'
+protocol = 'zentest3'
 
 # account = eth_account.Account.from_key('0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
 

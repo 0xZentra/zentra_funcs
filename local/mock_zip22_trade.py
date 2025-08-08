@@ -28,6 +28,8 @@ if __name__ == '__main__':
     height += 1
     snippet(height, 'zip22')
     height += 1
-    proposal(height, ['trade_limit_order', 'trade_market_order', 'trade_limit_order_cancel', 'trade_pair_create', 'trade_set_quote_token'], ['275453fa7f22675f43408e5470eba7e07625350744a1717e54a9c39ca043c30b'])
+    proposal(height,
+            ['trade_limit_order', 'trade_market_order', 'trade_limit_order_cancel', 'trade_pair_create', 'trade_set_quote_token'],
+            ['275453fa7f22675f43408e5470eba7e07625350744a1717e54a9c39ca043c30b'])
     height += 1
     vote(height, 5)
