@@ -10,7 +10,7 @@ import requests
 
 import setting
 
-from mock_zip01_function import proposal, vote
+from mock_zip2_function import snippet, proposal, vote
 
 
 CHAIN_NAME = 'base'
@@ -26,16 +26,8 @@ if __name__ == '__main__':
     print(height)
 
     height += 1
+    snippet(height, 'zip3')
+    height += 1
     proposal(height, 'asset_create')
     height += 1
     vote(height, 'asset_create')
-
-    height += 1
-    proposal(height, 'asset_update_functions')
-    height += 1
-    vote(height, 'asset_update_functions')
-
-    height += 1
-    proposal(height, 'asset_update_ownership')
-    height += 1
-    vote(height, 'asset_update_ownership')
