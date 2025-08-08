@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': "function_vote", 
-            'a': [1]}
+            'a': [2]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
