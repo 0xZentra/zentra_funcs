@@ -7,6 +7,7 @@ Gx = 550662630222773436695787188951685343262506034537775941755001873603891167292
 Gy = 32670510020758816978083085130507043184471273380659243275938904335757337482424
 G = (Gx, Gy)
 N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+K = 10**18
 
 def _inverse_mod(k, p):
     if k == 0:
@@ -105,7 +106,6 @@ def _ecdsa_recover(msg_hash_hex, signature_hex):
             u2 = (s * r_inv) % N
 
             q = _point_add(_scalar_mult(u1, G), _scalar_mult(u2, point))
-
             if q is None:
                 continue
 
@@ -175,7 +175,10 @@ def bridge_incoming_process(info, args):
     x19_msg_hash = keccak(x19_msg_prefix + encoded_data_hash)
     print(f"x19_msg (Pure Python): 0x{x19_msg_hash.hex()}")
 
+    print('x19', '0x'+x19_msg_hash.hex())
+    print('signature', '0x'+signature)
     recovered_public_key = _ecdsa_recover('0x'+x19_msg_hash.hex(), '0x'+signature)
+    print(f"recovered public key: {recovered_public_key}")
     if recovered_public_key:
         public_key_bytes = bytes.fromhex(recovered_public_key[2:])
         address_bytes = keccak(public_key_bytes)[-20:]
@@ -226,7 +229,6 @@ def bridge_incoming(info, args):
     print('tick', tick, 'balance', balance)
     # print('quote_value > 0', quote_value)
 
-    K = 10**18
     if tick != 'USDC':
         return
 

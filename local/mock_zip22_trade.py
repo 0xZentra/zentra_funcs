@@ -13,8 +13,7 @@ import setting
 from mock_zip2_function import snippet, proposal, vote
 
 
-CHAIN_NAME = 'base'
-
+CHAIN_NAME = setting.chain
 
 if __name__ == '__main__':
     from_block = 0
@@ -32,4 +31,4 @@ if __name__ == '__main__':
             ['trade_limit_order', 'trade_market_order', 'trade_limit_order_cancel', 'trade_pair_create', 'trade_set_quote_token'],
             ['275453fa7f22675f43408e5470eba7e07625350744a1717e54a9c39ca043c30b'])
     height += 1
-    vote(height, 5)
+    vote(height, 6)

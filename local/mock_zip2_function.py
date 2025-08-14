@@ -11,7 +11,7 @@ import requests
 import setting
 
 
-CHAIN_NAME = 'base'
+CHAIN_NAME = setting.chain
 
 def snippet(height, func):
     sourcecode = open('../funcs/%s.py' % func, 'r').read()

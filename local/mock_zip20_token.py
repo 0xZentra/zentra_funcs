@@ -13,8 +13,7 @@ import setting
 from mock_zip2_function import snippet, proposal, vote
 
 
-CHAIN_NAME = 'base'
-
+CHAIN_NAME = setting.chain
 
 if __name__ == '__main__':
     from_block = 0
