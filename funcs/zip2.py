@@ -30,7 +30,7 @@ def function_proposal(info, args):
     func_names = args['a'][0]
     snippet_digests = args['a'][1]
     for func_name in func_names:
-        assert set(func_name) <= set(string.ascii_lowercase+'_')
+        assert set(func_name) <= set(string.ascii_lowercase+string.digits+'_')
         assert not func_name.startswith('_')
 
     snippet_digests = args['a'][1]

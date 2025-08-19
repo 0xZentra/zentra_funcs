@@ -12,6 +12,7 @@ import setting
 
 from mock_zip2_function import snippet, proposal, vote
 
+
 CHAIN_NAME = setting.chain
 
 if __name__ == '__main__':
@@ -24,10 +25,10 @@ if __name__ == '__main__':
     print(height)
 
     height += 1
-    sourcecode_hash = snippet(height, 'zip3')
+    sourcecode_hash = snippet(height, 'zip21')
     height += 1
     proposal(height,
-            ['asset_create', 'asset_update_ownership', 'asset_update_functions'],
+            ['bridge_incoming_process', 'bridge_incoming', 'bridge_outgoing', 'bridge_set_operator', 'bridge_remove_operator', 'bridge_set_outgoing_price'],
             [sourcecode_hash])
     height += 1
-    vote(height, 3)
+    vote(height, 5)
