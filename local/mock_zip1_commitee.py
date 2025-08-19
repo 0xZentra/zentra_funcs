@@ -25,7 +25,7 @@ def init(height):
     info = {
         'sender': '0x1234'.lower(),
         'nonce': height,
-        'block_number': height, 
+        'block_number': height,
         'block_hash': blk['block_hash'],
         'tx_index': 0,
         'tx_hash': uuid.uuid4().hex
@@ -53,10 +53,10 @@ if __name__ == '__main__':
     height += 1
     init(height)
     height += 1
-    snippet(height, 'zip1')
+    sourcecode_hash = snippet(height, 'zip1')
     height += 1
     proposal(height,
              ['committee_init', 'committee_add_member', 'committee_remove_member'],
-             ['e5fb2b11848ff75c932891620723b60c8b1c8f3305c5307bf5a90e173d0911bd'])
+             [sourcecode_hash])
     height += 1
     vote(height, 1)

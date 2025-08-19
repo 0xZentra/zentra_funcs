@@ -15,6 +15,7 @@ CHAIN_NAME = setting.chain
 
 def snippet(height, func):
     sourcecode = open('../funcs/%s.py' % func, 'r').read()
+    sourcecode_hash = hashlib.sha256(sourcecode.encode('utf8')).hexdigest()
 
     blk = {
         'txs': [],
@@ -25,7 +26,7 @@ def snippet(height, func):
     info = {
         'sender': '0x1234'.lower(),
         'nonce': height,
-        'block_number': height, 
+        'block_number': height,
         'block_hash': blk['block_hash'],
         'tx_index': 0,
         'tx_hash': uuid.uuid4().hex
@@ -40,6 +41,8 @@ def snippet(height, func):
     requests.post('http://127.0.0.1:%s/' % setting.INDEXER_PORT, data=data.encode('utf8'))
     time.sleep(1)
 
+    return sourcecode_hash
+
 def proposal(height, func_names, snippet_hashes):
     blk = {
         'txs': [],
@@ -50,7 +53,7 @@ def proposal(height, func_names, snippet_hashes):
     info = {
         'sender': '0x1234'.lower(),
         'nonce': height,
-        'block_number': height, 
+        'block_number': height,
         'block_hash': blk['block_hash'],
         'tx_index': 0,
         'tx_hash': uuid.uuid4().hex
@@ -75,14 +78,14 @@ def vote(height, proposal_id):
     info = {
         'sender': '0x1234'.lower(),
         'nonce': height,
-        'block_number': height, 
+        'block_number': height,
         'block_hash': blk['block_hash'],
         'tx_index': 0,
         'tx_hash': uuid.uuid4().hex
     }
 
     call = {'p': setting.protocol,
-            'f': "function_vote", 
+            'f': "function_vote",
             'a': [proposal_id]}
     blk['txs'].append([info, call])
     print('blk', blk)
@@ -99,11 +102,11 @@ if __name__ == '__main__':
         height = from_block
     print(height)
 
-    # height += 1
-    # snippet(height, 'zip2')
+    height += 1
+    sourcecode_hash = snippet(height, 'zip2')
     height += 1
     proposal(height,
              ['function_snippet', 'function_proposal', 'function_vote'],
-             ['3e4584c9f89cb04b4b9cc79182892e02c4de65883a0d70e9dee033303c445c5d'])
+             [sourcecode_hash])
     height += 1
     vote(height, 2)
