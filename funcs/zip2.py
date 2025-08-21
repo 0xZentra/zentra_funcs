@@ -81,6 +81,8 @@ def function_vote(info, args):
             put(addr, 'function', 'code', {
                 'snippets': proposal['snippets']
             }, func_name)
+
+        funcs_reload(proposal['functions'])
         event('NewFunctions', [proposal_id, proposal['functions']])
     else:
         put(addr, 'function', 'proposal', proposal, '%s' % proposal_id)
