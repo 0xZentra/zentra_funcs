@@ -81,18 +81,19 @@ def token_burn(info, args):
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
 
     assert args['f'] == 'token_burn'
-    assert args['f'] in get('asset', 'functions', [], tick)
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     value = int(args['a'][1])
     assert value > 0
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    balance = get(tick, 'balance', 0, addr)
+    balance, _ = get(tick, 'balance', 0, addr)
     balance -= value
     assert balance >= 0
 
-    total = get(tick, 'total', 0, addr)
+    total, _ = get(tick, 'total', 0, addr)
     total -= value
     assert total >= 0
 
@@ -105,7 +106,8 @@ def token_transfer(info, args):
     assert set(tick) <= set(string.ascii_uppercase+'_')
 
     assert args['f'] == 'token_transfer'
-    assert args['f'] in get('asset', 'functions', [], tick)
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     receiver = args['a'][1].lower()
     assert len(receiver) <= 42

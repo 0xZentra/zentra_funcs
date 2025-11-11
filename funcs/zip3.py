@@ -23,9 +23,10 @@ def asset_update_ownership(info, args):
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
     addr = handle_lookup(sender)
-
     owner, _ = get('asset', 'owner', None, tick)
     assert owner == addr
+
+    # DO THIS to change the owner using receiver's Zentra token
     functions, _ = get('asset', 'functions', None, tick)
     assert type(functions) is list
     assert functions
@@ -43,7 +44,10 @@ def asset_update_functions(info, args):
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
 
     functions = args['a'][1]
     assert type(functions) is list
     assert functions
+    put(addr, 'asset', 'functions', functions, tick)
