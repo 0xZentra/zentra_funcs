@@ -65,6 +65,7 @@ def function_vote(info, args):
     votes.add(addr)
     proposal['votes'] = list(votes)
 
+    # print(len(votes), len(committee_members), len(committee_members)*2//3)
     if len(votes) >= len(committee_members)*2//3:
         assert len(proposal['snippets']) > 0
         for snippet_hash in proposal['snippets']:

@@ -184,9 +184,10 @@
 #         address_bytes = keccak(public_key_bytes)[-20:]
 #         address = '0x' + address_bytes.hex()
 #         print(f"Recovered Ethereum address: {address}")
+#         event('BridgeProcess', [address])
 
 
-# def bridge_incoming(info, args):
+# def bridge_incoming2(info, args):
 #     assert args['f'] == 'bridge_incoming'
 #     print('bridge_incoming', args)
 
