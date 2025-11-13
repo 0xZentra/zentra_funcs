@@ -368,9 +368,10 @@ def bridge_outgoing(info, args):
     assert amount > 0
 
     chain = args['a'][2]
-    assert chain in ['op-sepolia']
+    assert chain in ['base', 'base-sepolia', 'op-sepolia']
 
     sender = info['sender']
+    event('BridgeOutgoing', [tick, amount, chain, sender])
 
 
 def bridge_set_operator(info, args):
@@ -398,9 +399,9 @@ def bridge_set_operator(info, args):
     put(addr, tick, 'incoming_operator', operator)
 
 
-def bridge_remove_operator(info, args):
-    assert args['f'] == 'bridge_remove_operator'
-    print('bridge_remove_operator', args)
+def bridge_unset_operator(info, args):
+    assert args['f'] == 'bridge_unset_operator'
+    print('bridge_unset_operator', args)
 
     tick = args['a'][0]
     assert type(tick) is str
@@ -411,7 +412,7 @@ def bridge_remove_operator(info, args):
     asset_owner, _ = get('asset', 'owner', None, tick)
     sender = info['sender']
     addr = handle_lookup(sender)
-    # print('bridge_remove_operator', asset_owner, addr)
+    # print('bridge_unset_operator', asset_owner, addr)
     assert addr == asset_owner, "Only the asset owner can perform this operation"
 
     # operator = args['a'][1].lower()
@@ -425,3 +426,15 @@ def bridge_remove_operator(info, args):
 def bridge_set_outgoing_fee(info, args):
     assert args['f'] == 'bridge_set_outgoing_fee'
     print('bridge_set_outgoing_fee', args)
+
+    tick = args['a'][0]
+    assert type(tick) is str
+    assert len(tick) > 0 and len(tick) < 42
+    assert tick[0] in string.ascii_uppercase
+    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    chain = args['a'][1]
+    assert chain in ['base', 'base-sepolia', 'op-sepolia']
+
+    fee = int(args['a'][2])
+    assert fee > 0

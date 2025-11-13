@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['bridge_incoming_process', 'bridge_incoming', 'bridge_outgoing', 'bridge_set_operator', 'bridge_remove_operator', 'bridge_set_outgoing_price'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'a': [['bridge_incoming_process', 'bridge_incoming', 'bridge_outgoing', 'bridge_set_operator', 'bridge_unset_operator', 'bridge_set_outgoing_fee'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,

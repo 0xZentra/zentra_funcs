@@ -28,7 +28,7 @@ if __name__ == '__main__':
     sourcecode_hash = snippet(height, 'zip21')
     height += 1
     proposal(height,
-            ['bridge_incoming_process', 'bridge_incoming', 'bridge_outgoing', 'bridge_set_operator', 'bridge_remove_operator', 'bridge_set_outgoing_price'],
+            ['bridge_incoming_process', 'bridge_incoming', 'bridge_outgoing', 'bridge_set_operator', 'bridge_unset_operator', 'bridge_set_outgoing_fee'],
             [sourcecode_hash])
     height += 1
     vote(height, 5)
