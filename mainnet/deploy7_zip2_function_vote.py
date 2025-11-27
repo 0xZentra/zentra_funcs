@@ -20,6 +20,7 @@ if __name__ == '__main__':
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
+
     call = {'p': setting.protocol,
             'f': "function_vote", 
             'a': [2]}
@@ -37,8 +38,11 @@ if __name__ == '__main__':
     }
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    except:
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     # try:
-    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     print(tx_hash.hex())
     # except Exception as e:
     #     pass
