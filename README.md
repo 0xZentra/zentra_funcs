@@ -10,3 +10,8 @@ We list the proposed Zentra functions by ZIPs.
 *   [ZIP20](funcs/zip20.py): Functions for creating and managing tokens, including minting, burning, and transferring.
 *   [ZIP21](funcs/zip21.py): Functions for bridging assets from other blockchains, including handling incoming and outgoing transfers.
 *   [ZIP22](funcs/zip22.py): A decentralized orderbook exchange for trading assets, with support for limit and market orders.
+
+## Mainnet Deploy
+
+[Tx 0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264](https://basescan.org/tx/0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264)
+
