@@ -15,3 +15,4 @@ We list the proposed Zentra functions by ZIPs.
 
 [Tx 0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264](https://basescan.org/tx/0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264)
 
+[Tx 0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee](https://basescan.org/tx/0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee)
