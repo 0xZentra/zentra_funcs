@@ -13,11 +13,6 @@ chain = 'base'
 protocol = 'zen'
 
 
-rpc_url = 'https://mainnet.base.org'
-chain_id = 8453
-chain = 'base'
-protocol = 'zentest'
-
 ps = getpass.getpass()
 js = open('../account.json', 'r').read()
 sk = eth_account.Account.decrypt(json.loads(js), ps)

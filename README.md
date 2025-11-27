@@ -13,6 +13,9 @@ We list the proposed Zentra functions by ZIPs.
 
 ## Mainnet Deploy
 
-[Tx 0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264](https://basescan.org/tx/0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264)
+[Tx1 0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264](https://basescan.org/tx/0x35b316526973d4e05bf02fd9ac4efc27dde6f7521f06f5fd5e17c6019dd11264)
 
-[Tx 0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee](https://basescan.org/tx/0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee)
+[Tx2 0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee](https://basescan.org/tx/0xa2558656f3be226c8499228d674f4ffd029ac83bbb263aea06f7b2328995ebee)
+
+[Tx3 0xfc82377de1b80e24f824981aae98460f0a23ecf6b2b4bd6fb5dace21dd3cba22](https://basescan.org/tx/0xfc82377de1b80e24f824981aae98460f0a23ecf6b2b4bd6fb5dace21dd3cba22)
+
