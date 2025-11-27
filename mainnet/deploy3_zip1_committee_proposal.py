@@ -47,5 +47,4 @@ if __name__ == '__main__':
     print(tx_hash.hex())
     # except Exception as e:
     #     pass
-    time.sleep(5)
 
