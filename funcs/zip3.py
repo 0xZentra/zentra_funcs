@@ -51,3 +51,25 @@ def asset_update_functions(info, args):
     assert type(functions) is list
     assert functions
     put(addr, 'asset', 'functions', functions, tick)
+
+def asset_batch_create(info, args):
+    assert args['f'] == 'asset_batch_create'
+    sender = info['sender']
+    addr = handle_lookup(sender)
+    committee_members, _ = get('committee', 'members', [])
+    committee_members = set(committee_members)
+    assert addr in committee_members
+
+    ticks = args['a'][0]
+    assert type(ticks) is list
+    for tick in ticks:
+        assert type(tick) is str
+        assert len(tick) > 0 and len(tick) < 42
+        assert tick[0] in string.ascii_uppercase
+        assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+        addr = handle_lookup(sender)
+        owner, _ = get('asset', 'owner', None, tick)
+        assert not owner
+
+        put(addr, 'asset', 'owner', addr, tick)
+        put(addr, 'asset', 'functions', ['asset_update_ownership', 'asset_update_functions'], tick)

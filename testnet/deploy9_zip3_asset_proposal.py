@@ -25,14 +25,15 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['asset_create', 'asset_update_ownership', 'asset_update_functions'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'a': [['asset_create', 'asset_update_ownership', 'asset_update_functions', 'asset_batch_create'],
+                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 29240,
+        'gas': 39240,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -41,9 +42,11 @@ if __name__ == '__main__':
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
     # try:
-    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    except:
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     print(tx_hash.hex())
     # except Exception as e:
     #     pass
-    time.sleep(5)
 
