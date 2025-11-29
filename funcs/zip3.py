@@ -69,7 +69,7 @@ def asset_batch_create(info, args):
         assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
         addr = handle_lookup(sender)
         owner, _ = get('asset', 'owner', None, tick)
-        assert not owner
 
-        put(addr, 'asset', 'owner', addr, tick)
-        put(addr, 'asset', 'functions', ['asset_update_ownership', 'asset_update_functions'], tick)
+        if not owner:
+            put(addr, 'asset', 'owner', addr, tick)
+            put(addr, 'asset', 'functions', ['asset_update_ownership', 'asset_update_functions'], tick)
