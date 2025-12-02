@@ -1,5 +1,6 @@
 def token_create(info, args):
     assert args['f'] == 'token_create'
+
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -26,6 +27,10 @@ def token_create(info, args):
 
 
 def token_mint_once(info, args):
+    assert args['f'] == 'token_mint_once'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
@@ -34,10 +39,6 @@ def token_mint_once(info, args):
 
     value = int(args['a'][1])
     assert value > 0
-
-    assert args['f'] == 'token_mint_once'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
 
     sender = info['sender']
     addr = handle_lookup(sender)
@@ -52,12 +53,15 @@ def token_mint_once(info, args):
 
 
 def token_mint(info, args):
+    assert args['f'] == 'token_mint'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
-    assert args['f'] == 'token_mint'
 
     value = int(args['a'][1])
     assert value > 0
@@ -74,15 +78,15 @@ def token_mint(info, args):
 
 
 def token_burn(info, args):
+    assert args['f'] == 'token_burn'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
-
-    assert args['f'] == 'token_burn'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
 
     value = int(args['a'][1])
     assert value > 0
@@ -102,12 +106,15 @@ def token_burn(info, args):
 
 
 def token_transfer(info, args):
-    tick = args['a'][0]
-    assert set(tick) <= set(string.ascii_uppercase+'_')
-
     assert args['f'] == 'token_transfer'
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
+
+    tick = args['a'][0]
+    assert type(tick) is str
+    assert len(tick) > 0 and len(tick) < 42
+    assert tick[0] in string.ascii_uppercase
+    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
 
     receiver = args['a'][1].lower()
     assert len(receiver) <= 42
@@ -136,7 +143,71 @@ def token_transfer(info, args):
 
 def token_send(info, args):
     assert args['f'] == 'token_send'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
+    sender = info['sender']
+    addr = handle_lookup(sender)
+
+    tick = args['a'][0]
+    assert type(tick) is str
+    assert len(tick) > 0 and len(tick) < 42
+    assert tick[0] in string.ascii_uppercase
+    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    spender = args['a'][1].lower()  # the address allowed to spend
+    assert len(spender) <= 42
+    assert type(spender) is str
+    if len(spender) == 42:
+        assert spender.startswith('0x')
+        assert set(spender[2:]) <= set(string.digits+'abcdef')
+    else:
+        assert len(spender) > 4
+
+    value = int(args['a'][2])
+    assert value >= 0
+
+    put(addr, tick, 'allowance', value, f'{addr},{spender}')
+    event('SendApproval', [tick, addr, spender, value])
 
 
 def token_accept(info, args):
     assert args['f'] == 'token_accept'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
+    tick = args['a'][0]
+    assert type(tick) is str
+    assert len(tick) > 0 and len(tick) < 42
+    assert tick[0] in string.ascii_uppercase
+    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    from_addr = args['a'][1].lower()  # the address from which tokens are withdrawn
+    assert len(from_addr) <= 42
+    assert type(from_addr) is str
+    if len(from_addr) == 42:
+        assert from_addr.startswith('0x')
+        assert set(from_addr[2:]) <= set(string.digits+'abcdef')
+    else:
+        assert len(from_addr) > 4
+
+    to_addr = info['sender']
+    to_addr = handle_lookup(to_addr)
+    value = int(args['a'][2])
+    assert value > 0
+
+    allowance, _ = get(tick, 'allowance', 0, f'{from_addr},{to_addr}')
+    from_balance, _ = get(tick, 'balance', 0, from_addr)
+    allowance -= value
+    assert allowance >= 0
+    from_balance -= value
+    assert from_balance >= 0
+    put(from_addr, tick, 'allowance', allowance, f'{from_addr},{to_addr}')
+    put(from_addr, tick, 'balance', from_balance, from_addr)
+
+    to_balance, _ = get(tick, 'balance', 0, to_addr)
+    to_balance += value
+    put(to_addr, tick, 'balance', to_balance, to_addr)
+
+    event('Transfer', [tick, from_addr, to_addr, value])
+
