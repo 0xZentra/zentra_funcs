@@ -25,7 +25,12 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['trade_limit_order', 'trade_market_order', 'trade_limit_order_cancel', 'trade_pair_create', 'trade_set_quote_token'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'a': [['trade_limit_order',
+                   'trade_market_order',
+                   'trade_limit_order_cancel',
+                   'trade_pair_create',
+                   'trade_set_quote_token'],
+                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
@@ -41,8 +46,11 @@ if __name__ == '__main__':
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
     # try:
-    tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    except:
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     print(tx_hash.hex())
     # except Exception as e:
     #     pass
-    time.sleep(5)
+

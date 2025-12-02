@@ -24,18 +24,19 @@ def token_create(info, args):
     put(addr, tick, 'name', name)
     put(addr, tick, 'decimal', decimal)
     put(addr, 'asset', 'functions', functions, tick)
+    event('TokenCreated', [tick, name, decimal, functions])
 
 
 def token_mint_once(info, args):
-    assert args['f'] == 'token_mint_once'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'token_mint_once'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     value = int(args['a'][1])
     assert value > 0
@@ -50,18 +51,19 @@ def token_mint_once(info, args):
     balance, _ = get(tick, 'balance', 0, addr)
     balance += value
     put(addr, tick, 'balance', balance, addr)
+    event('TokenMintedOnce', [tick, total])
 
 
 def token_mint(info, args):
-    assert args['f'] == 'token_mint'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'token_mint'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     value = int(args['a'][1])
     assert value > 0
@@ -75,18 +77,19 @@ def token_mint(info, args):
     total, _ = get(tick, 'total', 0)
     total += value
     put(addr, tick, 'total', total)
+    event('TokenMinted', [tick, value, total])
 
 
 def token_burn(info, args):
-    assert args['f'] == 'token_burn'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'token_burn'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     value = int(args['a'][1])
     assert value > 0
@@ -103,18 +106,19 @@ def token_burn(info, args):
 
     put(addr, tick, 'balance', balance, addr)
     put(addr, tick, 'total', total)
+    event('TokenBurned', [tick, value, total])
 
 
 def token_transfer(info, args):
-    assert args['f'] == 'token_transfer'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'token_transfer'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     receiver = args['a'][1].lower()
     assert len(receiver) <= 42
@@ -138,22 +142,22 @@ def token_transfer(info, args):
     receiver_balance, _ = get(tick, 'balance', 0, receiver)
     receiver_balance += value
     put(receiver, tick, 'balance', receiver_balance, receiver)
-    event('Transfer', [tick, addr, receiver, value])
+    event('TokenTransfer', [tick, addr, receiver, value])
 
 
 def token_send(info, args):
+    tick = args['a'][0]
+    assert type(tick) is str
+    assert len(tick) > 0 and len(tick) < 42
+    assert tick[0] in string.ascii_uppercase
+    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
     assert args['f'] == 'token_send'
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
 
     sender = info['sender']
     addr = handle_lookup(sender)
-
-    tick = args['a'][0]
-    assert type(tick) is str
-    assert len(tick) > 0 and len(tick) < 42
-    assert tick[0] in string.ascii_uppercase
-    assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
 
     spender = args['a'][1].lower()  # the address allowed to spend
     assert len(spender) <= 42
@@ -168,19 +172,19 @@ def token_send(info, args):
     assert value >= 0
 
     put(addr, tick, 'allowance', value, f'{addr},{spender}')
-    event('SendApproval', [tick, addr, spender, value])
+    event('TokenSendApproval', [tick, addr, spender, value])
 
 
 def token_accept(info, args):
-    assert args['f'] == 'token_accept'
-    functions, _ = get('asset', 'functions', [], tick)
-    assert args['f'] in functions
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'token_accept'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
 
     from_addr = args['a'][1].lower()  # the address from which tokens are withdrawn
     assert len(from_addr) <= 42
@@ -209,5 +213,5 @@ def token_accept(info, args):
     to_balance += value
     put(to_addr, tick, 'balance', to_balance, to_addr)
 
-    event('Transfer', [tick, from_addr, to_addr, value])
+    event('TokenSent', [tick, from_addr, to_addr, value])
 

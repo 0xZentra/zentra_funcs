@@ -17,11 +17,10 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
-sourcecode = open('../funcs/zip21.py', 'r').read()
+sourcecode = open('../funcs/zip20.py', 'r').read()
 
 if __name__ == '__main__':
     account = setting.account
-
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
@@ -34,7 +33,7 @@ if __name__ == '__main__':
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 670000,
+        'gas': 310000,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -42,11 +41,14 @@ if __name__ == '__main__':
     }
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
+    # try:
     try:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     except:
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     print(tx_hash.hex())
+    # except Exception as e:
+    #     pass
     time.sleep(5)
 
 
@@ -55,11 +57,13 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['bridge_incoming',
-                   'bridge_outgoing',
-                   'bridge_set_operator',
-                   'bridge_unset_operator',
-                   'bridge_set_outgoing_fee'],
+            'a': [['token_create',
+                   'token_mint_once',
+                   'token_mint',
+                   'token_burn',
+                   'token_transfer',
+                   'token_send',
+                   'token_accept'],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
@@ -67,7 +71,7 @@ if __name__ == '__main__':
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 40000,
+        'gas': 39240,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -75,11 +79,14 @@ if __name__ == '__main__':
     }
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
+    # try:
     try:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     except:
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     print(tx_hash.hex())
+    # except Exception as e:
+    #     pass
     time.sleep(5)
 
     tx_hash = tx_hash.hex()
@@ -99,16 +106,21 @@ if __name__ == '__main__':
             break
         time.sleep(2)
 
+
+    nonce = w3.eth.get_transaction_count(account.address)
+    print(account.address, nonce)
+
+
     call = {'p': setting.protocol,
             'f': "function_vote", 
-            'a': [vote_no]}
+            'a': [17]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 25960,
+        'gas': 23960,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -116,10 +128,11 @@ if __name__ == '__main__':
     }
 
     signed = w3.eth.account.sign_transaction(transaction, account.key)
+    # try:
     try:
         tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
     except:
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     print(tx_hash.hex())
-
-
+    # except Exception as e:
+    #     pass

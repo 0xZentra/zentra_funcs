@@ -1,27 +1,35 @@
 def asset_create(info, args):
     assert args['f'] == 'asset_create'
-    sender = info['sender']
+
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    sender = info['sender']
     addr = handle_lookup(sender)
     owner, _ = get('asset', 'owner', None, tick)
     assert not owner
 
     put(addr, 'asset', 'owner', addr, tick)
     put(addr, 'asset', 'functions', ['asset_update_ownership', 'asset_update_functions'], tick)
+    event('AssetCreated', [tick])
+
 
 def asset_update_ownership(info, args):
-    assert args['f'] == 'asset_update_ownership'
-    sender = info['sender']
     tick = args['a'][0]
-    receiver = args['a'][1]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'asset_update_ownership'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
+    receiver = args['a'][1]
+    sender = info['sender']
     addr = handle_lookup(sender)
     owner, _ = get('asset', 'owner', None, tick)
     assert owner == addr
@@ -32,18 +40,21 @@ def asset_update_ownership(info, args):
     assert functions
     put(receiver, 'asset', 'owner', receiver, tick)
     put(receiver, 'asset', 'functions', functions, tick)
-
+    event('AssetOwnershipUpdated', [tick, receiver])
 
 def asset_update_functions(info, args):
-    assert args['f'] == 'asset_update_functions'
-    sender = info['sender']
-    addr = handle_lookup(sender)
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    assert args['f'] == 'asset_update_functions'
+    functions, _ = get('asset', 'functions', [], tick)
+    assert args['f'] in functions
+
+    sender = info['sender']
+    addr = handle_lookup(sender)
     owner, _ = get('asset', 'owner', None, tick)
     assert owner == addr
 
@@ -51,9 +62,12 @@ def asset_update_functions(info, args):
     assert type(functions) is list
     assert functions
     put(addr, 'asset', 'functions', functions, tick)
+    event('AssetFunctionsUpdated', [tick, functions])
+
 
 def asset_batch_create(info, args):
     assert args['f'] == 'asset_batch_create'
+
     sender = info['sender']
     addr = handle_lookup(sender)
     committee_members, _ = get('committee', 'members', [])
