@@ -17,6 +17,7 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
 sourcecode = open('../funcs/zip20.py', 'r').read()
+sourcecode1 = open('../funcs/zip20_mint_free.py', 'r').read()
 
 if __name__ == '__main__':
     account = setting.account
@@ -31,15 +32,19 @@ if __name__ == '__main__':
                    'token_burn',
                    'token_transfer',
                    'token_send',
-                   'token_accept'],
-                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+                   'token_accept',
+                   'token_free_mint',
+                   ],
+                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest(),
+                   hashlib.sha256(sourcecode1.encode('utf8')).hexdigest(),
+                   ]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 39240,
+        'gas': 49240,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,

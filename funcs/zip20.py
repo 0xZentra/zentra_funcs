@@ -3,6 +3,8 @@ def token_create(info, args):
 
     sender = info['sender']
     addr = handle_lookup(sender)
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
 
     tick = args['a'][0]
     assert type(tick) is str
@@ -38,11 +40,13 @@ def token_mint_once(info, args):
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
 
-    value = int(args['a'][1])
-    assert value > 0
-
     sender = info['sender']
     addr = handle_lookup(sender)
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
+
+    value = int(args['a'][1])
+    assert value > 0
 
     total, _ = get(tick, 'total', None)
     assert total is None, "Token already minted"
@@ -65,10 +69,13 @@ def token_mint(info, args):
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
 
-    value = int(args['a'][1])
-    assert value > 0
     sender = info['sender']
     addr = handle_lookup(sender)
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
+
+    value = int(args['a'][1])
+    assert value > 0
 
     balance, _ = get(tick, 'balance', 0, addr)
     balance += value
@@ -91,10 +98,13 @@ def token_burn(info, args):
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
 
-    value = int(args['a'][1])
-    assert value > 0
     sender = info['sender']
     addr = handle_lookup(sender)
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
+
+    value = int(args['a'][1])
+    assert value > 0
 
     balance, _ = get(tick, 'balance', 0, addr)
     balance -= value
