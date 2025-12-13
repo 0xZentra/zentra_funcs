@@ -15,8 +15,6 @@ def token_mint_free(info, args):
 
     sender = info['sender']
     addr = handle_lookup(sender)
-    owner, _ = get('asset', 'owner', None, tick)
-    assert owner == addr
 
     balance, _ = get(tick, 'balance', 0, addr)
     balance += value

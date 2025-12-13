@@ -33,7 +33,7 @@ if __name__ == '__main__':
                    'token_transfer',
                    'token_send',
                    'token_accept',
-                   'token_free_mint',
+                   'token_mint_free',
                    ],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest(),
                    hashlib.sha256(sourcecode1.encode('utf8')).hexdigest(),
