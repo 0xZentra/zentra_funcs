@@ -1,11 +1,10 @@
 
 import hashlib
 import json
-import getpass
 import time
 
 import web3
-import eth_account
+import requests
 
 import setting
 
@@ -56,3 +55,16 @@ if __name__ == '__main__':
     # except Exception as e:
     #     pass
 
+    tx_hash = tx_hash.hex()
+    vote_no = None
+    while True:
+        req = requests.get(f'https://mainnet.zentra.dev/api/events?txhash={tx_hash}')
+        for tx_events in req.json()['events']:
+            print(tx_events)
+            for event in tx_events[1]:
+                if event[0] == 'function_proposal' and event[1] == 'FunctionProposal':
+                    vote_no = event[2]
+        print(vote_no)
+        if vote_no is not None:
+            break
+        time.sleep(2)

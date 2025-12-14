@@ -18,6 +18,7 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
 sourcecode = open('../funcs/zip20.py', 'r').read()
+sourcecode1 = open('../funcs/zip20_mint_free.py', 'r').read()
 
 if __name__ == '__main__':
     account = setting.account
@@ -31,7 +32,37 @@ if __name__ == '__main__':
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
-        'nonce': w3.eth.get_transaction_count(account.address),
+        'nonce': nonce,
+        'data': json.dumps(call).encode('utf8'),
+        'gas': 410000,
+        'gasPrice': 1000000000,
+        # 'maxFeePerGas': 3000000000,
+        # 'maxPriorityFeePerGas': 0,
+        'chainId': setting.chain_id
+    }
+
+    signed = w3.eth.account.sign_transaction(transaction, account.key)
+    # try:
+    try:
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+    except:
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    print(tx_hash.hex())
+    # except Exception as e:
+    #     pass
+    time.sleep(5)
+
+    nonce = w3.eth.get_transaction_count(account.address)
+    print(account.address, nonce)
+
+    call = {'p': setting.protocol,
+            'f': 'function_snippet',
+            'a': [sourcecode1]}
+    transaction = {
+        'from': account.address,
+        'to': ZEN_ADDR,
+        'value': 0,
+        'nonce': nonce,
         'data': json.dumps(call).encode('utf8'),
         'gas': 310000,
         'gasPrice': 1000000000,
@@ -58,13 +89,15 @@ if __name__ == '__main__':
     call = {'p': setting.protocol,
             'f': 'function_proposal',
             'a': [['token_create',
+                   'token_transfer',
                    'token_mint_once',
                    'token_mint',
                    'token_burn',
-                   'token_transfer',
                    'token_send',
                    'token_accept'],
-                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest(),
+                   hashlib.sha256(sourcecode1.encode('utf8')).hexdigest(),
+                   ]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
@@ -90,9 +123,6 @@ if __name__ == '__main__':
     time.sleep(5)
 
     tx_hash = tx_hash.hex()
-    # tx_hash = 'f95e0e74b4a4abf56c680c8dbbcdd2b80780ee62a171b04bf7189f764981a7d3'
-    nonce = w3.eth.get_transaction_count(account.address)
-    print(account.address, nonce)
     vote_no = None
     while True:
         req = requests.get(f'https://testnet3.zentra.dev/api/events?txhash={tx_hash}')
@@ -110,17 +140,16 @@ if __name__ == '__main__':
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
-
     call = {'p': setting.protocol,
             'f': "function_vote", 
-            'a': [17]}
+            'a': [vote_no]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 23960,
+        'gas': 25960,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
