@@ -110,7 +110,7 @@ def token_burn(info, args):
     balance -= value
     assert balance >= 0
 
-    total, _ = get(tick, 'total', 0, addr)
+    total, _ = get(tick, 'total', 0)
     total -= value
     assert total >= 0
 
