@@ -28,11 +28,11 @@ def asset_update_ownership(info, args):
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
 
-    receiver = args['a'][1]
+    receiver = args['a'][1].lower()
     sender = info['sender']
     addr = handle_lookup(sender)
     owner, _ = get('asset', 'owner', None, tick)
-    assert owner == addr
+    assert owner.lower() == addr
 
     # DO THIS to change the owner using receiver's Zentra token
     functions, _ = get('asset', 'functions', None, tick)
