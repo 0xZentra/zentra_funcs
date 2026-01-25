@@ -32,6 +32,7 @@ if __name__ == '__main__':
                    'privacy_send',
                    'privacy_send_cancel',
                    'privacy_accept',
+                   'privacy_decline',
                    'privacy_withdraw',
                    'privacy_withdraw_cancel',
                    'privacy_exit',
