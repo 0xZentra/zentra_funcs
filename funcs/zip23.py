@@ -224,6 +224,9 @@ def privacy_deposit(info, args):
     tick, _ = get(privacy_tick, 'tick', None)
     _check_tick(tick)
 
+    pub = _get_pubkey(privacy_tick)
+    assert pub is not None
+
     functions, _ = get('asset', 'functions', [], tick)
     assert args['f'] in functions
     functions, _ = get('asset', 'functions', [], privacy_tick)
@@ -232,9 +235,9 @@ def privacy_deposit(info, args):
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    existing_deposit, _ = get(privacy_tick, 'privacy_deposit', None, addr)
-    if existing_deposit:
-        return
+    # existing_deposit, _ = get(privacy_tick, 'privacy_deposit', None, addr)
+    # if existing_deposit:
+    #     return
 
     amount = int(args['a'][1])
     assert amount >= 0
@@ -242,16 +245,32 @@ def privacy_deposit(info, args):
     amount_cipher = int(args['a'][2])
     assert amount_cipher >= 0
 
+    tx_id = int(args['a'][3])
+    assert tx_id >= 0
+
+    signature_hex = args['a'][4]
+    assert signature_hex.startswith('0x')
+
+    transaction_id, _privacy_tick_owner = get(privacy_tick, 'tx_count', 0, addr)
+    transaction_id += 1
+    assert tx_id == transaction_id
+
+    provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
+    msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(transaction_id)}'
+
+    if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
+        return
+
     balance, _ = get(tick, 'balance', 0, f'{sender}')
     assert balance >= amount
     balance_updated = balance - amount
-    put(sender, tick, 'balance', balance_updated, f'{sender}')
+    put(addr, tick, 'balance', balance_updated, addr)
+    put(addr, privacy_tick, 'tx_count', transaction_id, addr)
 
-    transaction_id, privacy_tick_owner = get(privacy_tick, 'transaction_count', 0)
-    transaction_id += 1
-    put(privacy_tick_owner, privacy_tick, 'transaction_count', transaction_id)
-
-    put(addr, privacy_tick, 'privacy_deposit', f'{str(amount)},{str(amount_cipher)},{str(transaction_id)}', f'{addr}')
+    # put(addr, privacy_tick, 'privacy_deposit', f'{str(amount)},{str(amount_cipher)},{str(transaction_id)}', f'{addr}')
+    balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, addr)
+    balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
+    put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, sender)
     event('PrivacyDeposit', [privacy_tick, addr, amount, amount_cipher, transaction_id])
 
 
