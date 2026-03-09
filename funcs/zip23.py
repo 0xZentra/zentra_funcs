@@ -245,18 +245,18 @@ def privacy_deposit(info, args):
     amount_cipher = int(args['a'][2])
     assert amount_cipher >= 0
 
-    tx_id = int(args['a'][3])
-    assert tx_id >= 0
+    nonce = int(args['a'][3])
+    assert nonce >= 0
 
     signature_hex = args['a'][4]
     assert signature_hex.startswith('0x')
 
-    transaction_id, _privacy_tick_owner = get(privacy_tick, 'tx_count', 0, addr)
-    transaction_id += 1
-    assert tx_id == transaction_id
+    # transaction_id, _privacy_tick_owner = get(privacy_tick, 'tx_count', 0, addr)
+    stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
+    assert nonce == stored_nonce + 1
 
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
-    msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(transaction_id)}'
+    msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(nonce)}'
 
     if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
         return
@@ -365,33 +365,53 @@ def privacy_withdraw(info, args):
     functions, _ = get('asset', 'functions', [], privacy_tick)
     assert args['f'] in functions
 
-    sender = info['sender']
-    from_addr = handle_lookup(sender)
-
-    existing_withdraw, _ = get(privacy_tick, 'privacy_withdraw', None, from_addr)
-    if existing_withdraw:
-        return
-
-    # to_addr = _resolve_account(args['a'][1])
     amount = int(args['a'][1])
+    assert amount > 0
     amount_cipher = int(args['a'][2])
+    assert amount_cipher > 0
+    old_balance_cipher = int(args['a'][3])
+    assert old_balance_cipher > 0
+    nonce = int(args['a'][4]) 
+    signature = args['a'][5]
 
+    sender = info['sender'].lower()
+
+    # 读取witness_addr进行签名校验
+    # witness, _ = get(privacy_tick, 'witness_role', None)
+    provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
+    assert provider_addr is not None, "Provider not initialized"
+
+    # nonce校验，防重放
+    stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
+    assert nonce == int(stored_nonce) + 1, "Invalid nonce"
+
+    # 签名校验
+    msg = f"{privacy_tick},privacy_withdraw,{sender},{nonce},{amount},{amount_cipher},{old_balance_cipher}"
+    recovered_addr = _addr_recover(msg,signature)
+    assert recovered_addr == provider_addr.lower(), "Invalid signature"
+
+    # 获取同态公钥
     pub = _get_pubkey(privacy_tick)
     assert pub is not None
 
-    balance_key = f'{from_addr},1'
-    balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, balance_key)
-    
-    balance_cipher_updated = _homomorphic_sub(pub, int(balance_cipher), amount_cipher)
-    put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, balance_key)
+    # 读取并校验链上状态
+    stored_balance, _ = get(privacy_tick, 'privacy_balance', 1, sender)
+    assert int(stored_balance) == old_balance_cipher, "State mismatch"
 
-    transaction_id, privacy_tick_owner = get(privacy_tick, 'transaction_count', 0)
-    transaction_id += 1
-    put(privacy_tick_owner, privacy_tick, 'transaction_count', transaction_id)
+    total_supply, _ = get(privacy_tick, 'total_supply', 0)
+    new_total = int(total_supply) - amount
+    assert new_total >= 0, "Insufficent total supply"
 
-    put(sender, privacy_tick, 'privacy_withdraw', f'{str(balance_cipher)},{str(amount)},{str(amount_cipher)},{str(transaction_id)}', from_addr)
+    # 执行同态减法
+    new_balance_cipher = _homomorphic_sub(pub, int(stored_balance), amount_cipher)
 
-    event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])
+    # 更新
+    put(sender, privacy_tick, 'privacy_balance', new_balance_cipher, sender)
+    put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
+    put(sender, privacy_tick, 'total_supply', new_total)
+
+    event('PrivacyWithdraw', [sender, amount, new_balance_cipher, nonce])
+    # event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])
 
 
 # def privacy_withdraw_cancel(info, args):
