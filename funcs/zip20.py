@@ -1,16 +1,16 @@
 def token_create(info, args):
     assert args['f'] == 'token_create'
 
-    sender = info['sender']
-    addr = handle_lookup(sender)
-    owner, _ = get('asset', 'owner', None, tick)
-    assert owner == addr
-
     tick = args['a'][0]
     assert type(tick) is str
     assert len(tick) > 0 and len(tick) < 42
     assert tick[0] in string.ascii_uppercase
     assert set(tick) <= set(string.ascii_uppercase+string.digits+'_')
+
+    sender = info['sender']
+    addr = handle_lookup(sender)
+    owner, _ = get('asset', 'owner', None, tick)
+    assert owner == addr
 
     name = args['a'][1]
     assert type(name) is str
