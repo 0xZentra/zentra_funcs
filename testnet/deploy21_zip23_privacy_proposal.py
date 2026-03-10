@@ -27,15 +27,8 @@ if __name__ == '__main__':
             'f': 'function_proposal',
             'a': [['privacy_init',
                    'privacy_deposit',
-                   'privacy_deposit_cancel',
-                   'privacy_enter',
-                   'privacy_send',
-                   'privacy_send_cancel',
-                   'privacy_accept',
-                   'privacy_decline',
+                   'privacy_transfer',
                    'privacy_withdraw',
-                   'privacy_withdraw_cancel',
-                   'privacy_exit',
                    ],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
