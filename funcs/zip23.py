@@ -209,7 +209,6 @@ def privacy_init(info, args):
         return
 
     put(provider_addr, privacy_tick, 'tick', tick)
-    put(provider_addr, privacy_tick, 'transaction_count', 0)
     put(provider_addr, privacy_tick, 'privacy_provider', provider_addr)
     put(provider_addr, privacy_tick, 'privacy_pub', int(paillier_pub))
 
@@ -237,10 +236,6 @@ def privacy_deposit(info, args):
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    # existing_deposit, _ = get(privacy_tick, 'privacy_deposit', None, addr)
-    # if existing_deposit:
-    #     return
-
     amount = int(args['a'][1])
     assert amount >= 0
 
@@ -253,7 +248,6 @@ def privacy_deposit(info, args):
     signature_hex = args['a'][4]
     assert signature_hex.startswith('0x')
 
-    # transaction_id, _privacy_tick_owner = get(privacy_tick, 'tx_count', 0, addr)
     stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
     assert nonce == stored_nonce + 1
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
@@ -273,58 +267,13 @@ def privacy_deposit(info, args):
     balance_updated = balance - amount
     put(addr, tick, 'balance', balance_updated, addr)
 
+    pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
+    put(privacy_tick, tick, 'balance', int(pool_balance) + amount, privacy_tick)
+
     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, addr)
     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
     put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, sender)
     event('PrivacyDeposit', [privacy_tick, addr, amount, amount_cipher, nonce])
-
-
-# def privacy_enter(info, args):
-#     assert args['f'] == 'privacy_enter'
-
-#     privacy_tick = args['a'][0]
-#     _check_tick(privacy_tick)
-#     tick, _ = get(privacy_tick, 'tick', None)
-#     _check_tick(tick)
-
-#     functions, _ = get('asset', 'functions', [], privacy_tick)
-#     assert args['f'] in functions
-#     functions, _ = get('asset', 'functions', [], tick)
-#     assert args['f'] in functions
-
-#     sender = info['sender']
-#     transaction_id = int(args['a'][1])
-#     signature_hex = args['a'][2]
-
-#     pub = _get_pubkey(privacy_tick)
-#     assert pub is not None
-
-#     deposit_info, owner = get(privacy_tick, 'privacy_deposit', 0, f'{sender}')
-#     assert deposit_info is not None
-#     parts = deposit_info.split(',')
-#     assert len(parts) == 3
-#     amount = int(parts[0])
-#     amount_cipher = int(parts[1])
-#     tx_id = int(parts[2])
-#     assert tx_id == transaction_id
-#     put(owner, privacy_tick, 'privacy_deposit', None, f'{sender}')
-
-#     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
-#     msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(transaction_id)}'
-
-#     if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
-#         return
-
-#     balance, _ = get(tick, 'balance', 0, f'{privacy_tick}')
-#     assert balance >= 0
-#     balance_updated = balance + amount
-#     put(sender, tick, 'balance', balance_updated, f'{privacy_tick}')
-
-#     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, f'{sender},1')
-#     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
-#     put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, f'{sender},1')
-
-#     event('PrivacyEnter', [tick, sender, balance_cipher_updated])
 
 
 def privacy_withdraw(info, args):
@@ -334,6 +283,9 @@ def privacy_withdraw(info, args):
     _check_tick(privacy_tick)
     functions, _ = get('asset', 'functions', [], privacy_tick)
     assert args['f'] in functions
+
+    tick, _ = get(privacy_tick, 'tick', None)
+    _check_tick(tick)
 
     amount = int(args['a'][1])
     assert amount > 0
@@ -346,25 +298,19 @@ def privacy_withdraw(info, args):
 
     sender = info['sender'].lower()
 
-    # 读取witness_addr进行签名校验
-    # witness, _ = get(privacy_tick, 'witness_role', None)
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
     assert provider_addr is not None, "Provider not initialized"
 
-    # nonce校验，防重放
     stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
     assert nonce == int(stored_nonce) + 1, "Invalid nonce"
 
-    # 签名校验
     msg = f"{privacy_tick},privacy_withdraw,{sender},{nonce},{amount},{amount_cipher},{old_balance_cipher}"
     recovered_addr = _addr_recover(msg, signature)
     assert recovered_addr == provider_addr.lower(), "Invalid signature"
 
-    # 获取同态公钥
     pub = _get_pubkey(privacy_tick)
     assert pub is not None
 
-    # 读取并校验链上状态
     stored_balance, _ = get(privacy_tick, 'privacy_balance', 1, sender)
     assert int(stored_balance) == old_balance_cipher, "State mismatch"
 
@@ -372,171 +318,62 @@ def privacy_withdraw(info, args):
     new_total = int(total_supply) - amount
     assert new_total >= 0, "Insufficent total supply"
 
-    # 执行同态减法
     new_balance_cipher = _homomorphic_sub(pub, int(stored_balance), amount_cipher)
 
-    # 更新
     put(sender, privacy_tick, 'privacy_balance', new_balance_cipher, sender)
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
     put(provider_addr, privacy_tick, 'total_supply', new_total)
 
+    pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
+    put(privacy_tick, tick, 'balance', int(pool_balance) - amount, privacy_tick)
+
+    user_balance, _ = get(tick, 'balance', 0, sender)
+    put(sender, tick, 'balance', int(user_balance) + amount, sender)
+
     event('PrivacyWithdraw', [sender, amount, new_balance_cipher, nonce])
-    # event('PrivacyWithdraw', [privacy_tick, balance_cipher, amount, amount_cipher, transaction_id])
 
 
-# def privacy_exit(info, args):
-#     assert args['f'] == 'privacy_exit'
-
-#     privacy_tick = args['a'][0]
-#     _check_tick(privacy_tick)
-#     tick, _ = get(privacy_tick, 'tick', None)
-#     _check_tick(tick)
-
-#     functions, _ = get('asset', 'functions', [], tick)
-#     assert args['f'] in functions
-#     functions, _ = get('asset', 'functions', [], privacy_tick)
-#     assert args['f'] in functions
-
-#     sender = info['sender']
-#     transaction_id = int(args['a'][1])
-#     signature_hex = args['a'][2]
-
-#     withdraw_info, _ = get(privacy_tick, 'privacy_withdraw', None, sender)
-#     if not withdraw_info:
-#         return
-
-#     parts = withdraw_info.split(',')
-#     assert len(parts) == 4
-#     balance_cipher = parts[0]
-#     amount = int(parts[1])
-#     amount_cipher = int(parts[2])
-#     tx_id = int(parts[3])
-#     assert tx_id == transaction_id
-
-#     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
-#     msg_to_sign = f'{privacy_tick},privacy_withdraw,{str(amount)},{str(transaction_id)}'
-
-#     if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
-#         return
-
-#     pool_balance, _ = get(tick, 'balance', 0, privacy_tick)
-#     assert pool_balance >= amount
-#     put(sender, tick, 'balance', pool_balance - amount, privacy_tick)
-
-#     balance, _ = get(tick, 'balance', 0, sender)
-#     put(sender, tick, 'balance', balance + amount, sender)
-
-#     put(sender, privacy_tick, 'privacy_withdraw', None, sender)
-
-#     event('PrivacyExit', [privacy_tick, sender, amount_cipher])
-
-
-def privacy_transfer(info, args):
+def privacy_transfer(info,args):
     assert args['f'] == 'privacy_transfer'
-
-    privacy_tick = args['a'][0]
+    privacy_tick= args['a'][0]
     _check_tick(privacy_tick)
+
     functions, _ = get('asset', 'functions', [], privacy_tick)
     assert args['f'] in functions
 
-    sender = info['sender']
-    from_addr = handle_lookup(sender)
-    from_subaccount = int(args['a'][1])
-    assert from_subaccount > 0
-    to_addr = _resolve_account(args['a'][2])
-    to_subaccount = int(args['a'][3])
-    assert to_subaccount > 0
-    amount_cipher = int(args['a'][4])
+    to_addr = args['a'][1].lower()
+    amount_cipher = int(args['a'][2])
+    assert amount_cipher > 0
 
-    send_info, _ = get(privacy_tick, 'privacy_transfer', None, f'{from_addr},{str(from_subaccount)}')
-    if send_info:
-        return
+    nonce = int(args['a'][3])
+    assert nonce > 0
+    signature = args['a'][4]
+    assert signature.startswith('0x')
 
+    sender = info['sender'].lower()    
+    assert sender != to_addr, "Self-transfer not allowed"
+
+    provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
+    assert provider_addr is not None, "Provider not initialized"
     pub = _get_pubkey(privacy_tick)
     assert pub is not None
 
-    balance_cipher, _ = get(privacy_tick, 'privacy_balance', from_subaccount, f'{from_addr},{str(from_subaccount)}')
-    balance_cipher_updated = _homomorphic_sub(pub, int(balance_cipher), amount_cipher)
-    put(sender, privacy_tick, 'privacy_balance', balance_cipher_updated, f'{from_addr},{str(from_subaccount)}')
+    msg = f"{privacy_tick},privacy_transfer,{sender},{to_addr},{nonce},{amount_cipher}"
+    recovered_addr = _addr_recover(msg, signature)
+    assert recovered_addr == provider_addr.lower(), "Invalid provider signature"
 
-    transaction_id, privacy_tick_owner = get(privacy_tick, 'transaction_count', 0)
-    transaction_id += 1
-    put(privacy_tick_owner, privacy_tick, 'transaction_count', transaction_id)
-    put(sender, privacy_tick, 'privacy_transfer', f'{str(balance_cipher)},{str(amount_cipher)},{to_addr},{str(to_subaccount)},{str(transaction_id)}', f'{sender},{str(from_subaccount)}')
+    current_sender_bal, _ = get(privacy_tick, 'privacy_balance', 1, sender)
+    current_receiver_bal, _ = get(privacy_tick, 'privacy_balance', 1, to_addr)
 
-    event('PrivacyTransfer', [privacy_tick, from_addr, from_subaccount, to_addr, to_subaccount, balance_cipher, amount_cipher, transaction_id])
+    stored_nonce, _ = get(privacy_tick, 'privacy_nonce', 0, sender)
+    assert nonce == int(stored_nonce) + 1, "Invalid nonce"
 
+    new_sender_bal = _homomorphic_sub(pub, int(current_sender_bal), amount_cipher)
+    new_receiver_bal = _homomorphic_add(pub, int(current_receiver_bal), amount_cipher)
 
-# def privacy_accept(info, args):
-#     assert args['f'] == 'privacy_accept'
+    put(sender, privacy_tick, 'privacy_balance', new_sender_bal, sender)
+    put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
+    put(to_addr, privacy_tick, 'privacy_balance', new_receiver_bal, to_addr)
 
-#     privacy_tick = args['a'][0]
-#     _check_tick(privacy_tick)
-#     functions, _ = get('asset', 'functions', [], privacy_tick)
-#     assert args['f'] in functions
-
-#     from_addr = _resolve_account(args['a'][1])
-#     from_subaccount = int(args['a'][2])
-#     assert from_subaccount > 0
-#     signature_hex = args['a'][3]
-#     to_subaccount = int(args['a'][4])
-#     sender = info['sender']
-
-#     send_info, _ = get(privacy_tick, 'privacy_send', None, f'{from_addr},{str(from_subaccount)}')
-#     if not send_info:
-#         return
-#     parts = send_info.split(',')
-#     assert len(parts) == 5
-#     # senderbalance_cipher = int(parts[0])
-#     amount_cipher = int(parts[1])
-#     to_addr = parts[2]
-#     to_subaccount = int(parts[3])
-#     transaction_id = int(parts[4])
-#     assert to_addr == sender
-
-#     pub = _get_pubkey(privacy_tick)
-#     assert pub is not None
-
-#     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
-#     msg_to_sign = f'{privacy_tick},privacy_send,{from_addr},{str(from_subaccount)},{str(transaction_id)}'
-#     if provider_addr.lower() != _addr_recover(msg_to_sign, signature_hex):
-#         return
-
-#     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, f'{to_addr},{str(to_subaccount)}')
-#     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
-#     put(to_addr, privacy_tick, 'privacy_balance', balance_cipher_updated, f'{to_addr},{str(to_subaccount)}')
-#     put(from_addr, privacy_tick, 'privacy_send', None, f'{from_addr},{str(from_subaccount)}')
-
-#     event('PrivacyAccept', [privacy_tick, to_subaccount, balance_cipher_updated, amount_cipher, transaction_id])
-
-
-# def privacy_decline(info, args):
-#     assert args['f'] == 'privacy_decline'
-
-#     privacy_tick = args['a'][0]
-#     _check_tick(privacy_tick)
-#     from_addr = _resolve_account(args['a'][1])
-#     from_subaccount = int(args['a'][2])
-#     assert from_subaccount > 0
-#     sender = info['sender']
-
-#     send_info, _ = get(privacy_tick, 'privacy_send', None, f'{from_addr},{str(from_subaccount)}')
-#     if not send_info:
-#         return
-#     parts = send_info.split(',')
-#     assert len(parts) == 5
-#     amount_cipher = int(parts[1])
-#     to_addr = parts[2]
-#     transaction_id = int(parts[4])
-#     assert to_addr == sender
-
-#     pub = _get_pubkey(privacy_tick)
-#     assert pub is not None
-
-#     balance_cipher, _ = get(privacy_tick, 'privacy_balance', 1, f'{from_addr},{str(from_subaccount)}')
-#     balance_cipher_updated = _homomorphic_add(pub, int(balance_cipher), amount_cipher)
-#     put(from_addr, privacy_tick, 'privacy_balance', balance_cipher_updated, f'{from_addr},{str(from_subaccount)}')
-#     put(from_addr, privacy_tick, 'privacy_send', None, f'{from_addr},{str(from_subaccount)}')
-
-#     event('PrivacyDecline', [privacy_tick, from_addr, from_subaccount, balance_cipher_updated, amount_cipher, transaction_id])
+    event('PrivacyTransfer', [sender, to_addr, amount_cipher, nonce])
 
