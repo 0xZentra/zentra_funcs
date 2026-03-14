@@ -213,8 +213,17 @@ def privacy_init(info, args):
     put(provider_addr, privacy_tick, 'privacy_pub', int(paillier_pub))
 
 
-# def privacy_update(info, args):
-#     assert args['f'] == 'privacy_update'
+def privacy_update(info, args):
+    assert args['f'] == 'privacy_update'
+
+    privacy_tick = args['a'][0]
+    _check_tick(privacy_tick)
+    owner, _ = get('asset', 'owner', None, privacy_tick)
+    assert owner == info['sender'], f"Only owner can update {privacy_tick}"
+
+    provider_addr = args['a'][1]
+    assert provider_addr.startswith('0x') and len(provider_addr) == 42
+    put(provider_addr, privacy_tick, 'privacy_provider', provider_addr.lower())
 
 
 def privacy_deposit(info, args):
@@ -256,8 +265,7 @@ def privacy_deposit(info, args):
     msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(nonce)}'
 
     recovered_addr = _addr_recover(msg_to_sign, signature_hex)
-    if provider_addr.lower() != recovered_addr:
-        return
+    assert provider_addr.lower() == recovered_addr, "Invalid signature"
 
     total_supply, _ = get(privacy_tick, 'total_supply', 0)
     put(provider_addr, privacy_tick, 'total_supply', int(total_supply) + amount)

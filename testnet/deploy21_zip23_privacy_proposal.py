@@ -26,6 +26,7 @@ if __name__ == '__main__':
     call = {'p': setting.protocol,
             'f': 'function_proposal',
             'a': [['privacy_init',
+                   'privacy_update',
                    'privacy_deposit',
                    'privacy_transfer',
                    'privacy_withdraw',
