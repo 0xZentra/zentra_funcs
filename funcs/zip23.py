@@ -205,8 +205,7 @@ def privacy_init(info, args):
     sender = info['sender']
 
     existing_provider, _ = get(privacy_tick, 'privacy_provider', None)
-    if existing_provider is not None:
-        return
+    assert existing_provider is None, "Provider already initialized"
 
     put(provider_addr, privacy_tick, 'tick', tick)
     put(provider_addr, privacy_tick, 'privacy_provider', provider_addr)
@@ -219,11 +218,15 @@ def privacy_update(info, args):
     privacy_tick = args['a'][0]
     _check_tick(privacy_tick)
     owner, _ = get('asset', 'owner', None, privacy_tick)
-    assert owner == info['sender'], f"Only owner can update {privacy_tick}"
+    assert owner.lower() == info['sender'].lower(), f"Only owner can update {privacy_tick}"
 
     provider_addr = args['a'][1]
     assert provider_addr.startswith('0x') and len(provider_addr) == 42
     put(provider_addr, privacy_tick, 'privacy_provider', provider_addr.lower())
+
+    paillier_pub = int(args['a'][2])
+    put(provider_addr, privacy_tick, 'privacy_pub', int(paillier_pub))
+    event('PrivacyUpdate', [privacy_tick, provider_addr])
 
 
 def privacy_deposit(info, args):
@@ -262,7 +265,7 @@ def privacy_deposit(info, args):
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
 
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
-    msg_to_sign = f'{privacy_tick},privacy_deposit,{str(amount)},{str(amount_cipher)},{str(nonce)}'
+    msg_to_sign = f'{privacy_tick},privacy_deposit,{sender},{nonce},{amount},{amount_cipher}'
 
     recovered_addr = _addr_recover(msg_to_sign, signature_hex)
     assert provider_addr.lower() == recovered_addr, "Invalid signature"
@@ -304,7 +307,7 @@ def privacy_withdraw(info, args):
     nonce = int(args['a'][4]) 
     signature = args['a'][5]
 
-    sender = info['sender'].lower()
+    sender = info['sender']
 
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)
     assert provider_addr is not None, "Provider not initialized"
