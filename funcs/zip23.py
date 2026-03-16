@@ -260,7 +260,7 @@ def privacy_deposit(info, args):
     signature_hex = args['a'][4]
     assert signature_hex.startswith('0x')
 
-    stored_nonce, _ = get(privacy_tick,'privacy_nonce', 0, sender)
+    stored_nonce, _ = get(privacy_tick, 'privacy_nonce', 0, sender)
     assert nonce == stored_nonce + 1
     put(sender, privacy_tick, 'privacy_nonce', nonce, sender)
 
@@ -346,7 +346,7 @@ def privacy_withdraw(info, args):
 
 def privacy_transfer(info,args):
     assert args['f'] == 'privacy_transfer'
-    privacy_tick= args['a'][0]
+    privacy_tick = args['a'][0]
     _check_tick(privacy_tick)
 
     functions, _ = get('asset', 'functions', [], privacy_tick)
@@ -361,7 +361,7 @@ def privacy_transfer(info,args):
     signature = args['a'][4]
     assert signature.startswith('0x')
 
-    sender = info['sender'].lower()    
+    sender = info['sender']
     assert sender != to_addr, "Self-transfer not allowed"
 
     provider_addr, _ = get(privacy_tick, 'privacy_provider', None)

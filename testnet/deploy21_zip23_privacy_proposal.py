@@ -17,6 +17,7 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
 sourcecode = open('../funcs/zip23.py', 'r').read()
+sourcecode1 = open('../funcs/zip23_reset.py', 'r').read()
 
 if __name__ == '__main__':
     account = setting.account
@@ -30,8 +31,10 @@ if __name__ == '__main__':
                    'privacy_deposit',
                    'privacy_transfer',
                    'privacy_withdraw',
+                   'privacy_reset'
                    ],
-                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+                  [hashlib.sha256(sourcecode.encode('utf8')).hexdigest(),
+                   hashlib.sha256(sourcecode1.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
