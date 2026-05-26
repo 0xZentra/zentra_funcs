@@ -29,7 +29,11 @@ if __name__ == '__main__':
                    'trade_market_order',
                    'trade_limit_order_cancel',
                    'trade_pair_create',
-                   'trade_set_quote_token'],
+                   'trade_pair_enable',
+                   'trade_pair_disable',
+                   'trade_set_quote_token',
+                   'trade_vote_treasure_manager',
+                   ],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,

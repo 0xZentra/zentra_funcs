@@ -482,13 +482,13 @@ def trade_limit_order_cancel(info, args):
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    base_tick = args['a'][1]
+    base_tick = args['a'][0]
     assert set(base_tick) <= set(string.ascii_uppercase + '_')
-    quote_tick = args['a'][2]
+    quote_tick = args['a'][1]
     assert set(quote_tick) <= set(string.ascii_uppercase + '_')
-    buy_or_sell = args['a'][3]
+    buy_or_sell = args['a'][2]
     assert buy_or_sell in ['buy', 'sell']
-    trade_order_id = int(args['a'][4])
+    trade_order_id = int(args['a'][3])
 
     pair = '%s_%s' % (base_tick, quote_tick)
     order_key = f'{pair}_{buy_or_sell}'
