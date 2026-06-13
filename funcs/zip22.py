@@ -494,9 +494,10 @@ def trade_limit_order_cancel(info, args):
     order_key = f'{pair}_{buy_or_sell}'
     order, _ = get('trade', order_key, None, str(trade_order_id))
 
-    assert order is not None, "Order does not exist"
-    assert order[0] == addr, "Sender is not the owner of the order"
+    if order is None:
+        return
 
+    assert order[0] == addr, "Sender is not the owner of the order"
     prev_order_id = order[4]
     next_order_id = order[5]
 
