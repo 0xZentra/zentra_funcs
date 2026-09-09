@@ -16,7 +16,7 @@ w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
 
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
-sourcecode = open('../funcs/zip23.py', 'r').read()
+sourcecode = open('../funcs/zip24.py', 'r').read()
 
 if __name__ == '__main__':
     account = setting.account
