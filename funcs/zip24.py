@@ -2,10 +2,10 @@ K = 10**18
 
 def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value):
     assert order_type in ['buy', 'sell']
+    price = - quote_value * K // base_value
     order_id = order_start
     while True:
         order, _ = get('predict', f'{pair}_{order_type}', None, str(order_id))
-        price = - quote_value * K // base_value
 
         if order is None:
             put(addr, 'predict', f'{pair}_{order_type}',
@@ -253,7 +253,7 @@ def predict_market_order(info, args):
             take_quote += dx_quote
             base_balance -= dx_base
 
-            if buy[1] == 0 or buy[1] // price == 0:
+            if buy[1] == 0 or buy[1] * K // price == 0:
                 predict_buy_start = _remove_order(addr, pair, buy, predict_buy_start, 'buy')
                 if buy[2] < 0:
                     _update_quote_balance(buy[0], quote_tick, -buy[2])
@@ -297,7 +297,7 @@ def predict_market_order(info, args):
             take_quote += dx_quote
             quote_balance -= dx_quote
 
-            if sell[1] == 0 or sell[1] // price == 0:
+            if sell[1] == 0 or sell[1] * K // price == 0:
                 predict_sell_start = _remove_order(addr, pair, sell, predict_sell_start, 'sell')
                 if sell[1] < 0:
                     _update_slug_balance(sell[0], slug, yes_or_no, -sell[1])
@@ -341,7 +341,7 @@ def predict_market_order(info, args):
             take_quote += dx_quote
             quote_balance -= dx_quote
 
-            if sell[1] == 0 or sell[1] // price == 0:
+            if sell[1] == 0 or sell[1] * K // price == 0:
                 predict_sell_start = _remove_order(addr, pair, sell, predict_sell_start, 'sell')
                 if sell[1] < 0:
                     _update_slug_balance(sell[0], slug, yes_or_no, -sell[1])
@@ -385,7 +385,7 @@ def predict_market_order(info, args):
             take_quote += dx_quote
             base_balance -= dx_base
 
-            if buy[1] == 0 or buy[1] // price == 0:
+            if buy[1] == 0 or buy[1] * K // price == 0:
                 predict_buy_start = _remove_order(addr, pair, buy, predict_buy_start, 'buy')
                 if buy[2] < 0:
                     _update_quote_balance(buy[0], quote_tick, -buy[2])
@@ -498,6 +498,8 @@ def predict_create(info, args):
     put(addr, 'predict', f'{slug}_no_sell_new', 1)
     put(addr, 'predict', f'{slug}_no_balance_new', None)
 
+    event('PredictCreate', [slug, quote_tick, addr])
+
 
 def predict_mint(info, args):
     assert args['f'] == 'predict_mint'
@@ -520,13 +522,17 @@ def predict_mint(info, args):
     for tick in ['yes', 'no']:
         _update_slug_balance(addr, slug, tick, quote_value)
 
-    #TODO: add event
+    event('PredictMint', [slug, addr, quote_value])
 
 
 def predict_submit(info, args):
     assert args['f'] == 'predict_submit'
     sender = info['sender']
     addr = handle_lookup(sender)
+
+    manager, _ = get('predict', 'manager', None)
+    assert manager is not None, "Manager not set"
+    assert addr == manager, "Only the manager can submit result"
 
     slug = args['a'][0]
     yes_or_no = args['a'][1]
@@ -654,10 +660,28 @@ def predict_set_quote_token(info, args):
     put(addr, 'predict', 'quote_tokens', quote_tokens)
 
 
+def predict_update_manager(info, args):
+    assert args['f'] == 'predict_update_manager'
+    sender = info['sender']
+    addr = handle_lookup(sender)
+
+    manager, _ = get('predict', 'manager', None)
+    if manager is not None:
+        assert addr == manager, "Only the current manager can change manager"
+
+    user = args['a'][0]
+    assert isinstance(user, str), "User address must be a string"
+    put(addr, 'predict', 'manager', user)
+    event('PredictUpdateManager', [addr, user])
+
+
 def predict_vote_manager(info, args):
     assert args['f'] == 'predict_vote_manager'
     sender = info['sender']
     addr = handle_lookup(sender)
+
+    manager, _ = get('predict', 'manager', None)
+    assert manager is None, "Manager already set, use predict_set_manager instead"
 
     committee_members, _ = get('committee', 'members', [])
     committee_members = set(committee_members)
@@ -674,5 +698,7 @@ def predict_vote_manager(info, args):
     if len(votes) >= len(committee_members) * 2 // 3:
         put(addr, 'predict', 'manager', user)
         put(addr, 'committee', 'proposal', [], proposal_key)
+        event('PredictUpdateManager', [list(votes), user])
     else:
         put(addr, 'committee', 'proposal', list(votes), proposal_key)
+
