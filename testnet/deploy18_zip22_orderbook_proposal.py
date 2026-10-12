@@ -25,14 +25,14 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['trade_limit_order',
-                   'trade_market_order',
-                   'trade_limit_order_cancel',
-                   'trade_pair_create',
-                   'trade_pair_enable',
-                   'trade_pair_disable',
-                   'trade_set_quote_token',
-                   'trade_vote_treasure_manager',
+            'a': [['spot_limit_order',
+                   'spot_market_order',
+                   'spot_limit_order_cancel',
+                   'spot_pair_create',
+                   'spot_pair_enable',
+                   'spot_pair_disable',
+                   'spot_set_quote_tokens',
+                   'spot_vote_manager',
                    ],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {

@@ -1,22 +1,22 @@
+
 def _decimal(tick):
     dec, _ = get(tick, 'decimal', None)
     if dec is None:
         dec = 0
     return dec
 
-
 def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, quote_scale):
     assert order_type in ['buy', 'sell']
     order_id = order_start
     price = - quote_value * quote_scale // base_value
     while True:
-        order, _ = get('trade', f'{pair}_{order_type}', None, str(order_id))
+        order, _ = get('spot', f'{pair}_{order_type}', None, str(order_id))
 
         if order is None:
-            put(addr, 'trade', f'{pair}_{order_type}',
+            put(addr, 'spot', f'{pair}_{order_type}',
                 [addr, base_value, quote_value, price, None, None], str(order_new))
             order_new += 1
-            put(addr, 'trade', f'{pair}_{order_type}_new', order_new)
+            put(addr, 'spot', f'{pair}_{order_type}_new', order_new)
             break
 
         if order_type == 'buy':
@@ -26,30 +26,30 @@ def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, b
 
         if cond:
             next_order_id = order[5]
-            put(addr, 'trade', f'{pair}_{order_type}',
+            put(addr, 'spot', f'{pair}_{order_type}',
                 [addr, base_value, quote_value, price, order_id, next_order_id], str(order_new))
             if next_order_id is None:
                 order_start = order_new
-                put(addr, 'trade', f'{pair}_{order_type}_start', order_new)
+                put(addr, 'spot', f'{pair}_{order_type}_start', order_new)
             order[5] = order_new
             order_new += 1
-            put(addr, 'trade', f'{pair}_{order_type}_new', order_new)
+            put(addr, 'spot', f'{pair}_{order_type}_new', order_new)
 
-            put(addr, 'trade', f'{pair}_{order_type}', order, str(order_id))
+            put(addr, 'spot', f'{pair}_{order_type}', order, str(order_id))
             if next_order_id is not None:
-                next_order, _ = get('trade', f'{pair}_{order_type}', None, str(next_order_id))
+                next_order, _ = get('spot', f'{pair}_{order_type}', None, str(next_order_id))
                 if next_order is not None:
                     next_order[4] = order[5]
-                    put(addr, 'trade', f'{pair}_{order_type}', next_order, str(next_order_id))
+                    put(addr, 'spot', f'{pair}_{order_type}', next_order, str(next_order_id))
             break
 
         if order[4] is None:
-            put(addr, 'trade', f'{pair}_{order_type}',
+            put(addr, 'spot', f'{pair}_{order_type}',
                 [addr, base_value, quote_value, price, None, order_id], str(order_new))
-            put(addr, 'trade', f'{pair}_{order_type}',
+            put(addr, 'spot', f'{pair}_{order_type}',
                 [order[0], order[1], order[2], order[3], order_new, order[5]], str(order_id))
             order_new += 1
-            put(addr, 'trade', f'{pair}_{order_type}_new', order_new)
+            put(addr, 'spot', f'{pair}_{order_type}_new', order_new)
             break
 
         order_id = order[4]
@@ -59,29 +59,29 @@ def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, b
 def _remove_order(addr, pair, order, order_start, buy_or_sell):
     assert buy_or_sell in ['buy', 'sell']
     if order[4]:
-        prev_order, _ = get('trade', f'{pair}_{buy_or_sell}', None, str(order[4]))
+        prev_order, _ = get('spot', f'{pair}_{buy_or_sell}', None, str(order[4]))
         prev_order[5] = order[5]
-        put(prev_order[0], 'trade', f'{pair}_{buy_or_sell}', prev_order, str(order[4]))
+        put(prev_order[0], 'spot', f'{pair}_{buy_or_sell}', prev_order, str(order[4]))
 
     if order[5]:
-        next_order, _ = get('trade', f'{pair}_{buy_or_sell}', None, str(order[5]))
+        next_order, _ = get('spot', f'{pair}_{buy_or_sell}', None, str(order[5]))
         next_order[4] = order[4]
-        put(next_order[0], 'trade', f'{pair}_{buy_or_sell}', next_order, str(order[5]))
+        put(next_order[0], 'spot', f'{pair}_{buy_or_sell}', next_order, str(order[5]))
 
     if order[4] is not None and order[5] is None:
         order_start = order[4]
-        put(addr, 'trade', f'{pair}_{buy_or_sell}_start', order_start)
+        put(addr, 'spot', f'{pair}_{buy_or_sell}_start', order_start)
 
     elif order[4] is None and order[5] is None:
-        order_new, _ = get('trade', f'{pair}_{buy_or_sell}_new', 1)
+        order_new, _ = get('spot', f'{pair}_{buy_or_sell}_new', 1)
         order_start = order_new
-        put(addr, 'trade', f'{pair}_{buy_or_sell}_start', order_start)
+        put(addr, 'spot', f'{pair}_{buy_or_sell}_start', order_start)
 
     return order_start
 
 
-def trade_limit_order(info, args):
-    assert args['f'] == 'trade_limit_order'
+def spot_limit_order(info, args):
+    assert args['f'] == 'spot_limit_order'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -96,10 +96,10 @@ def trade_limit_order(info, args):
     quote_value = int(args['a'][3])
     assert base_value * quote_value < 0
 
-    trade_buy_start, _ = get('trade', f'{pair}_buy_start', 1)
-    trade_buy_new, _ = get('trade', f'{pair}_buy_new', 1)
-    trade_sell_start, _ = get('trade', f'{pair}_sell_start', 1)
-    trade_sell_new, _ = get('trade', f'{pair}_sell_new', 1)
+    spot_buy_start, _ = get('spot', f'{pair}_buy_start', 1)
+    spot_buy_new, _ = get('spot', f'{pair}_buy_new', 1)
+    spot_sell_start, _ = get('spot', f'{pair}_sell_start', 1)
+    spot_sell_new, _ = get('spot', f'{pair}_sell_new', 1)
 
     if base_value < 0 and quote_value > 0:
         buy_or_sell = 'sell'
@@ -109,8 +109,8 @@ def trade_limit_order(info, args):
         assert balance >= 0
         put(addr, base_tick, 'balance', balance, addr)
 
-        order_id = trade_sell_new
-        trade_sell_start, trade_sell_new = _insert_order(addr, pair, 'sell', trade_sell_start, trade_sell_new, quote_value, base_value, quote_scale)
+        order_id = spot_sell_new
+        spot_sell_start, spot_sell_new = _insert_order(addr, pair, 'sell', spot_sell_start, spot_sell_new, quote_value, base_value, quote_scale)
 
     elif base_value > 0 and quote_value < 0:
         buy_or_sell = 'buy'
@@ -120,33 +120,33 @@ def trade_limit_order(info, args):
         assert balance >= 0
         put(addr, quote_tick, 'balance', balance, addr)
 
-        order_id = trade_buy_new
-        trade_buy_start, trade_buy_new = _insert_order(addr, pair, 'buy', trade_buy_start, trade_buy_new, quote_value, base_value, quote_scale)
+        order_id = spot_buy_new
+        spot_buy_start, spot_buy_new = _insert_order(addr, pair, 'buy', spot_buy_start, spot_buy_new, quote_value, base_value, quote_scale)
 
-    trade_sell_id = trade_sell_start
+    spot_sell_id = spot_sell_start
     highest_buy_price = None
 
     # take_amount = 0
     take_base = 0
     take_quote = 0
     while True:
-        sell, _ = get('trade', f'{pair}_sell', None, str(trade_sell_id))
+        sell, _ = get('spot', f'{pair}_sell', None, str(spot_sell_id))
         if not sell:
             break
         sell_price = sell[3]
         if highest_buy_price and sell_price > highest_buy_price:
             break
 
-        trade_buy_id = trade_buy_start
+        spot_buy_id = spot_buy_start
         while True:
-            buy, _ = get('trade', f'{pair}_buy', None, str(trade_buy_id))
+            buy, _ = get('spot', f'{pair}_buy', None, str(spot_buy_id))
             if not buy:
                 break
             buy_price = buy[3]
             if highest_buy_price is None:
                 highest_buy_price = buy_price
             if sell_price > buy_price:
-                trade_buy_id = buy[4]
+                spot_buy_id = buy[4]
                 continue
 
             matched_price = sell_price
@@ -173,7 +173,7 @@ def trade_limit_order(info, args):
             put(sell[0], quote_tick, 'balance', balance, sell[0])
 
             if buy[1] == 0:
-                trade_buy_start = _remove_order(addr, pair, buy, trade_buy_start, 'buy')
+                spot_buy_start = _remove_order(addr, pair, buy, spot_buy_start, 'buy')
 
                 if buy[2] < 0:
                     balance, _ = get(quote_tick, 'balance', 0, buy[0])
@@ -181,18 +181,18 @@ def trade_limit_order(info, args):
                     assert balance >= 0
                     put(buy[0], quote_tick, 'balance', balance, buy[0])
     
-                put(buy[0], 'trade', f'{pair}_buy', None, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', None, str(spot_buy_id))
             else:
-                put(buy[0], 'trade', f'{pair}_buy', buy, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', buy, str(spot_buy_id))
 
             if sell[1] == 0:
                 break
             if buy[4] is None:
                 break
-            trade_buy_id = buy[4]
+            spot_buy_id = buy[4]
 
         if sell[1] == 0:
-            trade_sell_start = _remove_order(addr, pair, sell, trade_sell_start, 'sell')
+            spot_sell_start = _remove_order(addr, pair, sell, spot_sell_start, 'sell')
 
             if sell[1] < 0:
                 balance, _ = get(base_tick, 'balance', 0, sell[0])
@@ -200,25 +200,25 @@ def trade_limit_order(info, args):
                 assert balance >= 0
                 put(sell[0], base_tick, 'balance', balance, sell[0])
 
-            put(sell[0], 'trade', f'{pair}_sell', None, str(trade_sell_id))
+            put(sell[0], 'spot', f'{pair}_sell', None, str(spot_sell_id))
         else:
-            put(sell[0], 'trade', f'{pair}_sell', sell, str(trade_sell_id))
+            put(sell[0], 'spot', f'{pair}_sell', sell, str(spot_sell_id))
 
         if sell[4] is None:
             break
-        trade_sell_id = sell[4]
+        spot_sell_id = sell[4]
 
     make_base -= take_base
     assert make_base >= 0
     make_price = - quote_value * quote_scale // base_value
-    event('TradeLimitMake', [pair, buy_or_sell, addr, make_base, make_price, order_id])
+    event('SpotLimitMake', [pair, buy_or_sell, addr, make_base, make_price, order_id])
     if take_base > 0:
         take_price = take_quote * quote_scale // take_base
-        event('TradeLimitTake', [pair, buy_or_sell, addr, take_base, take_price, order_id])
+        event('SpotLimitTake', [pair, buy_or_sell, addr, take_base, take_price, order_id])
 
 
-def trade_market_order(info, args):
-    assert args['f'] == 'trade_market_order'
+def spot_market_order(info, args):
+    assert args['f'] == 'spot_market_order'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -231,8 +231,8 @@ def trade_market_order(info, args):
     base_value = args['a'][1]
     quote_value = args['a'][3]
     quote_scale = 10 ** _decimal(quote_tick)
-    trade_sell_start, _ = get('trade', f'{pair}_sell_start', 1)
-    trade_buy_start, _ = get('trade', f'{pair}_buy_start', 1)
+    spot_sell_start, _ = get('spot', f'{pair}_sell_start', 1)
+    spot_buy_start, _ = get('spot', f'{pair}_buy_start', 1)
 
     take_base = 0
     take_quote = 0
@@ -242,9 +242,9 @@ def trade_market_order(info, args):
         base_balance, _ = get(base_tick, 'balance', 0, addr)
         # base_sum = 0
 
-        trade_buy_id = trade_buy_start
+        spot_buy_id = spot_buy_start
         while True:
-            buy, _ = get('trade', f'{pair}_buy', None, str(trade_buy_id))
+            buy, _ = get('spot', f'{pair}_buy', None, str(spot_buy_id))
             if buy is None:
                 break
 
@@ -263,7 +263,7 @@ def trade_market_order(info, args):
             # base_sum += dx_base
 
             if buy[1] == 0 or buy[1] // price == 0:
-                trade_buy_start = _remove_order(addr, pair, buy, trade_buy_start, 'buy')
+                spot_buy_start = _remove_order(addr, pair, buy, spot_buy_start, 'buy')
 
                 if buy[2] < 0:
                     balance, _ = get(quote_tick, 'balance', 0, buy[0])
@@ -271,9 +271,9 @@ def trade_market_order(info, args):
                     assert balance >= 0
                     put(buy[0], quote_tick, 'balance', balance, buy[0])
     
-                put(buy[0], 'trade', f'{pair}_buy', None, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', None, str(spot_buy_id))
             else:
-                put(buy[0], 'trade', f'{pair}_buy', buy, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', buy, str(spot_buy_id))
 
             balance, _ = get(base_tick, 'balance', 0, buy[0])
             balance += dx_base
@@ -289,7 +289,7 @@ def trade_market_order(info, args):
 
             if buy[4] is None:
                 break
-            trade_buy_id = buy[4]
+            spot_buy_id = buy[4]
 
         balance, _ = get(base_tick, 'balance', 0, addr)
         balance -= take_base
@@ -302,9 +302,9 @@ def trade_market_order(info, args):
         quote_balance, _ = get(quote_tick, 'balance', 0, addr)
         # quote_sum = 0
 
-        trade_sell_id = trade_sell_start
+        spot_sell_id = spot_sell_start
         while True:
-            sell, _ = get('trade', f'{pair}_sell', None, str(trade_sell_id))
+            sell, _ = get('spot', f'{pair}_sell', None, str(spot_sell_id))
             if sell is None:
                 break
 
@@ -324,7 +324,7 @@ def trade_market_order(info, args):
             # quote_sum += dx_quote
 
             if sell[1] == 0 or sell[1] // price == 0:
-                trade_sell_start = _remove_order(addr, pair, sell, trade_sell_start, 'sell')
+                spot_sell_start = _remove_order(addr, pair, sell, spot_sell_start, 'sell')
 
                 if sell[1] < 0:
                     balance, _ = get(base_tick, 'balance', 0, sell[0])
@@ -332,9 +332,9 @@ def trade_market_order(info, args):
                     assert balance >= 0
                     put(sell[0], base_tick, 'balance', balance, sell[0])
 
-                put(sell[0], 'trade', f'{pair}_sell', None, str(trade_sell_id))
+                put(sell[0], 'spot', f'{pair}_sell', None, str(spot_sell_id))
             else:
-                put(sell[0], 'trade', f'{pair}_sell', sell, str(trade_sell_id))
+                put(sell[0], 'spot', f'{pair}_sell', sell, str(spot_sell_id))
 
             balance, _ = get(quote_tick, 'balance', 0, sell[0])
             balance += dx_quote
@@ -350,7 +350,7 @@ def trade_market_order(info, args):
 
             if sell[4] is None:
                 break
-            trade_sell_id = sell[4]
+            spot_sell_id = sell[4]
 
         balance, _ = get(quote_tick, 'balance', 0, addr)
         balance -= take_quote
@@ -363,9 +363,9 @@ def trade_market_order(info, args):
         quote_balance, _ = get(quote_tick, 'balance', 0, addr)
         # quote_sum = 0
 
-        trade_sell_id = trade_sell_start
+        spot_sell_id = spot_sell_start
         while True:
-            sell, _ = get('trade', f'{pair}_sell', None, str(trade_sell_id))
+            sell, _ = get('spot', f'{pair}_sell', None, str(spot_sell_id))
             if sell is None:
                 break
 
@@ -385,7 +385,7 @@ def trade_market_order(info, args):
             # quote_sum += dx_quote
 
             if sell[1] == 0 or sell[1] // price == 0:
-                trade_sell_start = _remove_order(addr, pair, sell, trade_sell_start, 'sell')
+                spot_sell_start = _remove_order(addr, pair, sell, spot_sell_start, 'sell')
 
                 if sell[1] < 0:
                     balance, _ = get(base_tick, 'balance', 0, sell[0])
@@ -393,9 +393,9 @@ def trade_market_order(info, args):
                     assert balance >= 0
                     put(sell[0], base_tick, 'balance', balance, sell[0])
 
-                put(sell[0], 'trade', f'{pair}_sell', None, str(trade_sell_id))
+                put(sell[0], 'spot', f'{pair}_sell', None, str(spot_sell_id))
             else:
-                put(sell[0], 'trade', f'{pair}_sell', sell, str(trade_sell_id))
+                put(sell[0], 'spot', f'{pair}_sell', sell, str(spot_sell_id))
 
             balance, _ = get(quote_tick, 'balance', 0, sell[0])
             balance += dx_quote
@@ -411,7 +411,7 @@ def trade_market_order(info, args):
 
             if sell[4] is None:
                 break
-            trade_sell_id = sell[4]
+            spot_sell_id = sell[4]
 
         balance, _ = get(quote_tick, 'balance', 0, addr)
         balance -= take_quote
@@ -424,9 +424,9 @@ def trade_market_order(info, args):
         base_balance, _ = get(base_tick, 'balance', 0, addr)
         # base_sum = 0
 
-        trade_buy_id = trade_buy_start
+        spot_buy_id = spot_buy_start
         while True:
-            buy, _ = get('trade', f'{pair}_buy', None, str(trade_buy_id))
+            buy, _ = get('spot', f'{pair}_buy', None, str(spot_buy_id))
             if buy is None:
                 break
 
@@ -446,7 +446,7 @@ def trade_market_order(info, args):
             # base_sum += dx_base
 
             if buy[1] == 0 or buy[1] // price == 0:
-                trade_buy_start = _remove_order(addr, pair, buy, trade_buy_start, 'buy')
+                spot_buy_start = _remove_order(addr, pair, buy, spot_buy_start, 'buy')
 
                 if buy[2] < 0:
                     balance, _ = get(quote_tick, 'balance', 0, buy[0])
@@ -454,9 +454,9 @@ def trade_market_order(info, args):
                     assert balance >= 0
                     put(buy[0], quote_tick, 'balance', balance, buy[0])
     
-                put(buy[0], 'trade', f'{pair}_buy', None, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', None, str(spot_buy_id))
             else:
-                put(buy[0], 'trade', f'{pair}_buy', buy, str(trade_buy_id))
+                put(buy[0], 'spot', f'{pair}_buy', buy, str(spot_buy_id))
 
             balance, _ = get(base_tick, 'balance', 0, buy[0])
             balance += dx_base
@@ -472,7 +472,7 @@ def trade_market_order(info, args):
 
             if buy[4] is None:
                 break
-            trade_buy_id = buy[4]
+            spot_buy_id = buy[4]
 
         balance, _ = get(base_tick, 'balance', 0, addr)
         balance -= take_base
@@ -481,11 +481,11 @@ def trade_market_order(info, args):
 
     if take_base > 0:
         price = take_quote * quote_scale // take_base
-        event('TradeMarketTake', [pair, buy_or_sell, addr, take_base, price])
+        event('SpotMarketTake', [pair, buy_or_sell, addr, take_base, price])
 
 
-def trade_limit_order_cancel(info, args):
-    assert args['f'] == 'trade_limit_order_cancel'
+def spot_limit_order_cancel(info, args):
+    assert args['f'] == 'spot_limit_order_cancel'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -495,11 +495,11 @@ def trade_limit_order_cancel(info, args):
     assert set(quote_tick) <= set(string.ascii_uppercase + '_')
     buy_or_sell = args['a'][2]
     assert buy_or_sell in ['buy', 'sell']
-    trade_order_id = int(args['a'][3])
+    spot_order_id = int(args['a'][3])
 
     pair = '%s_%s' % (base_tick, quote_tick)
     order_key = f'{pair}_{buy_or_sell}'
-    order, _ = get('trade', order_key, None, str(trade_order_id))
+    order, _ = get('spot', order_key, None, str(spot_order_id))
 
     if order is None:
         return
@@ -509,26 +509,26 @@ def trade_limit_order_cancel(info, args):
     next_order_id = order[5]
 
     if prev_order_id is not None:
-        prev_order, _ = get('trade', order_key, None, str(prev_order_id))
+        prev_order, _ = get('spot', order_key, None, str(prev_order_id))
         if prev_order:
             prev_order[5] = next_order_id
-            put(prev_order[0], 'trade', order_key, prev_order, str(prev_order_id))
+            put(prev_order[0], 'spot', order_key, prev_order, str(prev_order_id))
 
     if next_order_id is not None:
-        next_order, _ = get('trade', order_key, None, str(next_order_id))
+        next_order, _ = get('spot', order_key, None, str(next_order_id))
         if next_order:
             next_order[4] = prev_order_id
-            put(next_order[0], 'trade', order_key, next_order, str(next_order_id))
+            put(next_order[0], 'spot', order_key, next_order, str(next_order_id))
 
     start_key = f'{pair}_{buy_or_sell}_start'
-    current_start, _ = get('trade', start_key, 1)
-    if current_start == trade_order_id:
+    current_start, _ = get('spot', start_key, 1)
+    if current_start == spot_order_id:
         if prev_order_id is not None:
-            put(addr, 'trade', start_key, prev_order_id)
+            put(addr, 'spot', start_key, prev_order_id)
         else:
             new_start_key = f'{pair}_{buy_or_sell}_new'
-            new_start_val, _ = get('trade', new_start_key, 1)
-            put(addr, 'trade', start_key, new_start_val)
+            new_start_val, _ = get('spot', new_start_key, 1)
+            put(addr, 'spot', start_key, new_start_val)
 
     if buy_or_sell == 'sell':
         if order[1] < 0:
@@ -541,36 +541,36 @@ def trade_limit_order_cancel(info, args):
             balance -= order[2]
             put(addr, quote_tick, 'balance', balance, addr)
 
-    put(addr, 'trade', order_key, None, str(trade_order_id))
-    event('TradeOrderCancel', [trade_order_id, buy_or_sell, pair])
+    put(addr, 'spot', order_key, None, str(spot_order_id))
+    event('SpotOrderCancel', [spot_order_id, buy_or_sell, pair])
 
 
-def trade_pair_create(info, args):
-    assert args['f'] == 'trade_pair_create'
+def spot_pair_create(info, args):
+    assert args['f'] == 'spot_pair_create'
     sender = info['sender']
     addr = handle_lookup(sender)
 
     base_tick = args['a'][0]
     quote_tick = args['a'][1]
 
-    quote_tokens, _ = get('trade', 'quote_tokens', [])
+    quote_tokens, _ = get('spot', 'quote_tokens', [])
     assert quote_tick in quote_tokens, f"{quote_tick} is not a designated quote token"
 
     owner, _ = get('asset', 'owner', None, base_tick)
     assert owner == addr, f"Sender must be the owner of the base token ({base_tick})"
     pair = f'{base_tick}_{quote_tick}'
-    enable, _ = get('trade', f'{pair}_enable', None)
+    enable, _ = get('spot', f'{pair}_enable', None)
     assert enable is None, "Pair already exists"
 
-    put(addr, 'trade', f'{pair}_enable', True)
-    put(addr, 'trade', f'{pair}_buy_start', 1)
-    put(addr, 'trade', f'{pair}_buy_new', 1)
-    put(addr, 'trade', f'{pair}_sell_start', 1)
-    put(addr, 'trade', f'{pair}_sell_new', 1)
+    put(addr, 'spot', f'{pair}_enable', True)
+    put(addr, 'spot', f'{pair}_buy_start', 1)
+    put(addr, 'spot', f'{pair}_buy_new', 1)
+    put(addr, 'spot', f'{pair}_sell_start', 1)
+    put(addr, 'spot', f'{pair}_sell_new', 1)
 
 
-def trade_pair_enable(info, args):
-    assert args['f'] == 'trade_pair_enable'
+def spot_pair_enable(info, args):
+    assert args['f'] == 'spot_pair_enable'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -581,11 +581,11 @@ def trade_pair_enable(info, args):
     owner, _ = get('asset', 'owner', None, base_tick)
     assert owner == addr, f"Sender must be the owner of the base token ({base_tick})"
 
-    put(addr, 'trade', f'{pair}_enable', True)
+    put(addr, 'spot', f'{pair}_enable', True)
 
 
-def trade_pair_disable(info, args):
-    assert args['f'] == 'trade_pair_disable'
+def spot_pair_disable(info, args):
+    assert args['f'] == 'spot_pair_disable'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -596,22 +596,22 @@ def trade_pair_disable(info, args):
     owner, _ = get('asset', 'owner', None, base_tick)
     assert owner == addr, f"Sender must be the owner of the base token ({base_tick})"
 
-    put(addr, 'trade', f'{pair}_enable', False)
+    put(addr, 'spot', f'{pair}_enable', False)
 
 
-def trade_set_quote_token(info, args):
-    assert args['f'] == 'trade_set_quote_token'
+def spot_set_quote_tokens(info, args):
+    assert args['f'] == 'spot_set_quote_tokens'
     sender = info['sender']
     addr = handle_lookup(sender)
 
-    treasure_manager, _ = get('trade', 'treasure_manager', None)
-    assert treasure_manager is not None, "Treasure manager not set"
-    assert addr == treasure_manager, "Only the treasure manager can add quote tokens"
+    manager, _ = get('spot', 'manager', None)
+    assert manager is not None, "Manager not set"
+    assert addr == manager, "Only the manager can add quote tokens"
 
     new_tokens = args['a'][0]
     assert isinstance(new_tokens, list), "Quote tokens must be a list"
 
-    quote_tokens, _ = get('trade', 'quote_tokens', [])
+    quote_tokens, _ = get('spot', 'quote_tokens', [])
 
     for token in new_tokens:
         assert isinstance(token, str), "Token ticker must be a string"
@@ -619,11 +619,11 @@ def trade_set_quote_token(info, args):
         if token not in quote_tokens:
             quote_tokens.append(token)
 
-    put(addr, 'trade', 'quote_tokens', quote_tokens)
+    put(addr, 'spot', 'quote_tokens', quote_tokens)
 
 
-def trade_vote_treasure_manager(info, args):
-    assert args['f'] == 'trade_vote_treasure_manager'
+def spot_vote_manager(info, args):
+    assert args['f'] == 'spot_vote_manager'
     sender = info['sender']
     addr = handle_lookup(sender)
 
@@ -634,13 +634,13 @@ def trade_vote_treasure_manager(info, args):
     user = args['a'][0]
     assert isinstance(user, str), "User address must be a string"
 
-    proposal_key = f'trade_treasure_manager:{user}'
+    proposal_key = f'spot_manager:{user}'
     votes, _ = get('committee', 'proposal', [], proposal_key)
     votes = set(votes)
     votes.add(addr)
 
     if len(votes) >= len(committee_members) * 2 // 3:
-        put(addr, 'trade', 'treasure_manager', user)
+        put(addr, 'spot', 'manager', user)
         put(addr, 'committee', 'proposal', [], proposal_key)
     else:
         put(addr, 'committee', 'proposal', list(votes), proposal_key)
