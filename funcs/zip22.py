@@ -1,11 +1,16 @@
-K = 10**18
+def _decimal(tick):
+    dec, _ = get(tick, 'decimal', None)
+    if dec is None:
+        dec = 0
+    return dec
 
-def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value):
+
+def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, quote_scale):
     assert order_type in ['buy', 'sell']
     order_id = order_start
+    price = - quote_value * quote_scale // base_value
     while True:
         order, _ = get('trade', f'{pair}_{order_type}', None, str(order_id))
-        price = - quote_value * K // base_value
 
         if order is None:
             put(addr, 'trade', f'{pair}_{order_type}',
@@ -86,6 +91,7 @@ def trade_limit_order(info, args):
     assert set(quote_tick) <= set(string.ascii_uppercase+'_')
 
     pair = '%s_%s' % tuple([base_tick, quote_tick])
+    quote_scale = 10 ** _decimal(quote_tick)
     base_value = int(args['a'][1])
     quote_value = int(args['a'][3])
     assert base_value * quote_value < 0
@@ -104,7 +110,7 @@ def trade_limit_order(info, args):
         put(addr, base_tick, 'balance', balance, addr)
 
         order_id = trade_sell_new
-        trade_sell_start, trade_sell_new = _insert_order(addr, pair, 'sell', trade_sell_start, trade_sell_new, quote_value, base_value)
+        trade_sell_start, trade_sell_new = _insert_order(addr, pair, 'sell', trade_sell_start, trade_sell_new, quote_value, base_value, quote_scale)
 
     elif base_value > 0 and quote_value < 0:
         buy_or_sell = 'buy'
@@ -115,7 +121,7 @@ def trade_limit_order(info, args):
         put(addr, quote_tick, 'balance', balance, addr)
 
         order_id = trade_buy_new
-        trade_buy_start, trade_buy_new = _insert_order(addr, pair, 'buy', trade_buy_start, trade_buy_new, quote_value, base_value)
+        trade_buy_start, trade_buy_new = _insert_order(addr, pair, 'buy', trade_buy_start, trade_buy_new, quote_value, base_value, quote_scale)
 
     trade_sell_id = trade_sell_start
     highest_buy_price = None
@@ -145,7 +151,7 @@ def trade_limit_order(info, args):
 
             matched_price = sell_price
             dx_base = min(-sell[1], buy[1])
-            dx_quote = dx_base * matched_price // K
+            dx_quote = dx_base * matched_price // quote_scale
             sell[1] += dx_base
             sell[2] -= dx_quote
             buy[1] -= dx_base
@@ -204,10 +210,10 @@ def trade_limit_order(info, args):
 
     make_base -= take_base
     assert make_base >= 0
-    make_price = - quote_value * K // base_value
+    make_price = - quote_value * quote_scale // base_value
     event('TradeLimitMake', [pair, buy_or_sell, addr, make_base, make_price, order_id])
     if take_base > 0:
-        take_price = take_quote * K // take_base
+        take_price = take_quote * quote_scale // take_base
         event('TradeLimitTake', [pair, buy_or_sell, addr, take_base, take_price, order_id])
 
 
@@ -224,6 +230,7 @@ def trade_market_order(info, args):
 
     base_value = args['a'][1]
     quote_value = args['a'][3]
+    quote_scale = 10 ** _decimal(quote_tick)
     trade_sell_start, _ = get('trade', f'{pair}_sell_start', 1)
     trade_buy_start, _ = get('trade', f'{pair}_buy_start', 1)
 
@@ -242,8 +249,8 @@ def trade_market_order(info, args):
                 break
 
             price = buy[3]
-            dx_base = min(buy[1], -buy[2] * K // price, -base_value)
-            dx_quote = dx_base * price // K
+            dx_base = min(buy[1], -buy[2] * quote_scale // price, -base_value)
+            dx_quote = dx_base * price // quote_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -302,8 +309,8 @@ def trade_market_order(info, args):
                 break
 
             price = sell[3]
-            dx_base = min(-sell[1], quote_balance * K // price, base_value)
-            dx_quote = dx_base * price // K
+            dx_base = min(-sell[1], quote_balance * quote_scale // price, base_value)
+            dx_quote = dx_base * price // quote_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -363,8 +370,8 @@ def trade_market_order(info, args):
                 break
 
             price = sell[3]
-            dx_base = min(-sell[1], -quote_value * K // price)
-            dx_quote = dx_base * price // K
+            dx_base = min(-sell[1], -quote_value * quote_scale // price)
+            dx_quote = dx_base * price // quote_scale
             if dx_base == 0 or  dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -424,8 +431,8 @@ def trade_market_order(info, args):
                 break
 
             price = buy[3]
-            dx_base = min(buy[1], base_balance, quote_value * K // price)
-            dx_quote = dx_base * price // K
+            dx_base = min(buy[1], base_balance, quote_value * quote_scale // price)
+            dx_quote = dx_base * price // quote_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -473,7 +480,7 @@ def trade_market_order(info, args):
         put(addr, base_tick, 'balance', balance, addr)
 
     if take_base > 0:
-        price = take_quote * K // take_base
+        price = take_quote * quote_scale // take_base
         event('TradeMarketTake', [pair, buy_or_sell, addr, take_base, price])
 
 
