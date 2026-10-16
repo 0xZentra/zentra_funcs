@@ -31,7 +31,7 @@ if __name__ == '__main__':
                    'predict_limit_order',
                    'predict_market_order',
                    'predict_limit_order_cancel',
-                   'predict_set_quote_token',
+                   'predict_set_quote_tokens',
                    'predict_vote_manager'
                    ],
                   [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}

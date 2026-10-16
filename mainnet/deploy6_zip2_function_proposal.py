@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['function_snippet', 'function_snippet_clear', 'function_proposal', 'function_vote'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'a': [['function_snippet', 'function_snippet_clear', 'function_proposal', 'function_vote', 'function_delete_proposal', 'function_delete_vote'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,

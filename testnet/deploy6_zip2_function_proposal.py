@@ -25,14 +25,14 @@ if __name__ == '__main__':
 
     call = {'p': setting.protocol,
             'f': 'function_proposal',
-            'a': [['function_snippet', 'function_snippet_clear', 'function_proposal', 'function_vote'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
+            'a': [['function_snippet', 'function_snippet_clear', 'function_proposal', 'function_vote', 'function_delete_proposal', 'function_delete_vote'], [hashlib.sha256(sourcecode.encode('utf8')).hexdigest()]]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': w3.eth.get_transaction_count(account.address),
         'data': json.dumps(call).encode('utf8'),
-        'gas': 29240,
+        'gas': 49240,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
