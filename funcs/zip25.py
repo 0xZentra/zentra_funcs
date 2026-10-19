@@ -3,9 +3,9 @@ def _valid_slug(slug):
     assert isinstance(slug, str) and slug, "Slug must be a non-empty string"
     assert set(slug) <= set(string.ascii_lowercase+string.digits+'_'), "Invalid characters in slug"
 
-def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, mode, quote_scale):
+def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, mode, base_scale):
     assert order_type in ['buy', 'sell']
-    premium_price = - quote_value * quote_scale // base_value
+    premium_price = - quote_value * base_scale // base_value
     order_id = order_start
     while True:
         order, _ = get('options', f'{pair}_{order_type}', None, str(order_id))
@@ -215,7 +215,7 @@ def options_limit_buy(info, args):
 
     slug = args['a'][0]
     base_tick, quote_tick, _strike = _market(slug)
-    quote_scale = 10 ** _decimal(quote_tick)
+    base_scale = 10 ** _decimal(base_tick)
 
     call_or_put = args['a'][1]
     assert call_or_put in set(['call', 'put'])
@@ -235,7 +235,7 @@ def options_limit_buy(info, args):
     make_base = base_value
 
     order_id = options_buy_new
-    options_buy_start, options_buy_new = _insert_order(addr, pair, 'buy', options_buy_start, options_buy_new, quote_value, base_value, None, quote_scale)
+    options_buy_start, options_buy_new = _insert_order(addr, pair, 'buy', options_buy_start, options_buy_new, quote_value, base_value, None, base_scale)
 
     options_sell_id = options_sell_start
     highest_buy_premium_price = None
@@ -264,7 +264,7 @@ def options_limit_buy(info, args):
 
             matched_premium_price = sell_premium_price
             dx_base = min(-sell[1], buy[1])
-            dx_quote = dx_base * matched_premium_price // quote_scale
+            dx_quote = dx_base * matched_premium_price // base_scale
             sell[1] += dx_base
             sell[2] -= dx_quote
             buy[1] -= dx_base
@@ -304,10 +304,10 @@ def options_limit_buy(info, args):
 
     make_base -= take_base
     assert make_base >= 0
-    make_premium_price = - quote_value * quote_scale // base_value
+    make_premium_price = - quote_value * base_scale // base_value
     event('OptionsLimitMake', [pair, buy_or_sell, addr, make_base, make_premium_price, order_id])
     if take_base > 0:
-        take_premium_price = take_quote * quote_scale // take_base
+        take_premium_price = take_quote * base_scale // take_base
         event('OptionsLimitTake', [pair, buy_or_sell, addr, take_base, take_premium_price, order_id])
 
 
@@ -318,7 +318,7 @@ def options_limit_sell(info, args):
 
     slug = args['a'][0]
     base_tick, quote_tick, strike = _market(slug)
-    quote_scale = 10 ** _decimal(quote_tick)
+    base_scale = 10 ** _decimal(base_tick)
 
     call_or_put = args['a'][1]
     assert call_or_put in set(['call', 'put'])
@@ -344,7 +344,7 @@ def options_limit_sell(info, args):
         _update_claim(addr, pair, -make_base)
 
     order_id = options_sell_new
-    options_sell_start, options_sell_new = _insert_order(addr, pair, 'sell', options_sell_start, options_sell_new, quote_value, base_value, mode, quote_scale)
+    options_sell_start, options_sell_new = _insert_order(addr, pair, 'sell', options_sell_start, options_sell_new, quote_value, base_value, mode, base_scale)
 
     options_sell_id = options_sell_start
     highest_buy_premium_price = None
@@ -373,7 +373,7 @@ def options_limit_sell(info, args):
 
             matched_premium_price = sell_premium_price
             dx_base = min(-sell[1], buy[1])
-            dx_quote = dx_base * matched_premium_price // quote_scale
+            dx_quote = dx_base * matched_premium_price // base_scale
             sell[1] += dx_base
             sell[2] -= dx_quote
             buy[1] -= dx_base
@@ -413,10 +413,10 @@ def options_limit_sell(info, args):
 
     make_base -= take_base
     assert make_base >= 0
-    make_premium_price = - quote_value * quote_scale // base_value
+    make_premium_price = - quote_value * base_scale // base_value
     event('OptionsLimitMake', [pair, buy_or_sell, addr, make_base, make_premium_price, order_id])
     if take_base > 0:
-        take_premium_price = take_quote * quote_scale // take_base
+        take_premium_price = take_quote * base_scale // take_base
         event('OptionsLimitTake', [pair, buy_or_sell, addr, take_base, take_premium_price, order_id])
 
 
@@ -427,7 +427,7 @@ def options_market_order(info, args):
 
     slug = args['a'][0]
     base_tick, quote_tick, strike = _market(slug)
-    quote_scale = 10 ** _decimal(quote_tick)
+    base_scale = 10 ** _decimal(base_tick)
 
     call_or_put = args['a'][1]
     assert call_or_put in set(['call', 'put'])
@@ -453,8 +453,8 @@ def options_market_order(info, args):
                 break
 
             premium_price = buy[3]
-            dx_base = min(buy[1], -buy[2] * quote_scale // premium_price, -base_value)
-            dx_quote = dx_base * premium_price // quote_scale
+            dx_base = min(buy[1], -buy[2] * base_scale // premium_price, -base_value)
+            dx_quote = dx_base * premium_price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -465,7 +465,7 @@ def options_market_order(info, args):
             take_quote += dx_quote
             base_balance -= dx_base
 
-            if buy[1] == 0 or buy[1] * quote_scale // premium_price == 0:
+            if buy[1] == 0 or buy[1] * premium_price // base_scale == 0:
                 options_buy_start = _remove_order(addr, pair, buy, options_buy_start, 'buy')
                 if buy[2] < 0:
                     _update_quote_balance(buy[0], quote_tick, -buy[2])
@@ -497,8 +497,8 @@ def options_market_order(info, args):
                 break
 
             premium_price = sell[3]
-            dx_base = min(-sell[1], quote_balance * quote_scale // premium_price, base_value)
-            dx_quote = dx_base * premium_price // quote_scale
+            dx_base = min(-sell[1], quote_balance * base_scale // premium_price, base_value)
+            dx_quote = dx_base * premium_price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -510,7 +510,7 @@ def options_market_order(info, args):
             take_quote += dx_quote
             quote_balance -= dx_quote
 
-            if sell[1] == 0 or sell[1] * quote_scale // premium_price == 0:
+            if sell[1] == 0 or sell[1] * premium_price // base_scale == 0:
                 options_sell_start = _remove_order(addr, pair, sell, options_sell_start, 'sell')
                 if sell[6] == 'write':
                     _release_escrow(sell, pair, slug, call_or_put, base_tick, quote_tick, strike)
@@ -547,8 +547,8 @@ def options_market_order(info, args):
                 break
 
             premium_price = sell[3]
-            dx_base = min(-sell[1], -quote_value * quote_scale // premium_price)
-            dx_quote = dx_base * premium_price // quote_scale
+            dx_base = min(-sell[1], -quote_value * base_scale // premium_price)
+            dx_quote = dx_base * premium_price // base_scale
             if dx_base == 0 or  dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -560,7 +560,7 @@ def options_market_order(info, args):
             take_quote += dx_quote
             quote_balance -= dx_quote
 
-            if sell[1] == 0 or sell[1] * quote_scale // premium_price == 0:
+            if sell[1] == 0 or sell[1] * premium_price // base_scale == 0:
                 options_sell_start = _remove_order(addr, pair, sell, options_sell_start, 'sell')
                 if sell[6] == 'write':
                     _release_escrow(sell, pair, slug, call_or_put, base_tick, quote_tick, strike)
@@ -598,8 +598,8 @@ def options_market_order(info, args):
                 break
 
             premium_price = buy[3]
-            dx_base = min(buy[1], base_balance, quote_value * quote_scale // premium_price)
-            dx_quote = dx_base * premium_price // quote_scale
+            dx_base = min(buy[1], base_balance, quote_value * base_scale // premium_price)
+            dx_quote = dx_base * premium_price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -611,7 +611,7 @@ def options_market_order(info, args):
             take_quote += dx_quote
             base_balance -= dx_base
 
-            if buy[1] == 0 or buy[1] * quote_scale // premium_price == 0:
+            if buy[1] == 0 or buy[1] * premium_price // base_scale == 0:
                 options_buy_start = _remove_order(addr, pair, buy, options_buy_start, 'buy')
                 if buy[2] < 0:
                     _update_quote_balance(buy[0], quote_tick, -buy[2])
@@ -632,7 +632,7 @@ def options_market_order(info, args):
         _update_claim(addr, pair, -take_base)
 
     if take_base > 0:
-        premium_price = take_quote * quote_scale // take_base
+        premium_price = take_quote * base_scale // take_base
         event('OptionsMarketTake', [pair, buy_or_sell, addr, take_base, premium_price])
 
 

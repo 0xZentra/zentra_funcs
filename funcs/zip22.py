@@ -5,10 +5,10 @@ def _decimal(tick):
         dec = 0
     return dec
 
-def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, quote_scale):
+def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, base_value, base_scale):
     assert order_type in ['buy', 'sell']
     order_id = order_start
-    price = - quote_value * quote_scale // base_value
+    price = - quote_value * base_scale // base_value
     while True:
         order, _ = get('spot', f'{pair}_{order_type}', None, str(order_id))
 
@@ -91,7 +91,7 @@ def spot_limit_order(info, args):
     assert set(quote_tick) <= set(string.ascii_uppercase+'_')
 
     pair = '%s_%s' % tuple([base_tick, quote_tick])
-    quote_scale = 10 ** _decimal(quote_tick)
+    base_scale = 10 ** _decimal(base_tick)
     base_value = int(args['a'][1])
     quote_value = int(args['a'][3])
     assert base_value * quote_value < 0
@@ -110,7 +110,7 @@ def spot_limit_order(info, args):
         put(addr, base_tick, 'balance', balance, addr)
 
         order_id = spot_sell_new
-        spot_sell_start, spot_sell_new = _insert_order(addr, pair, 'sell', spot_sell_start, spot_sell_new, quote_value, base_value, quote_scale)
+        spot_sell_start, spot_sell_new = _insert_order(addr, pair, 'sell', spot_sell_start, spot_sell_new, quote_value, base_value, base_scale)
 
     elif base_value > 0 and quote_value < 0:
         buy_or_sell = 'buy'
@@ -121,7 +121,7 @@ def spot_limit_order(info, args):
         put(addr, quote_tick, 'balance', balance, addr)
 
         order_id = spot_buy_new
-        spot_buy_start, spot_buy_new = _insert_order(addr, pair, 'buy', spot_buy_start, spot_buy_new, quote_value, base_value, quote_scale)
+        spot_buy_start, spot_buy_new = _insert_order(addr, pair, 'buy', spot_buy_start, spot_buy_new, quote_value, base_value, base_scale)
 
     spot_sell_id = spot_sell_start
     highest_buy_price = None
@@ -151,7 +151,7 @@ def spot_limit_order(info, args):
 
             matched_price = sell_price
             dx_base = min(-sell[1], buy[1])
-            dx_quote = dx_base * matched_price // quote_scale
+            dx_quote = dx_base * matched_price // base_scale
             sell[1] += dx_base
             sell[2] -= dx_quote
             buy[1] -= dx_base
@@ -210,10 +210,10 @@ def spot_limit_order(info, args):
 
     make_base -= take_base
     assert make_base >= 0
-    make_price = - quote_value * quote_scale // base_value
+    make_price = - quote_value * base_scale // base_value
     event('SpotLimitMake', [pair, buy_or_sell, addr, make_base, make_price, order_id])
     if take_base > 0:
-        take_price = take_quote * quote_scale // take_base
+        take_price = take_quote * base_scale // take_base
         event('SpotLimitTake', [pair, buy_or_sell, addr, take_base, take_price, order_id])
 
 
@@ -230,7 +230,7 @@ def spot_market_order(info, args):
 
     base_value = args['a'][1]
     quote_value = args['a'][3]
-    quote_scale = 10 ** _decimal(quote_tick)
+    base_scale = 10 ** _decimal(base_tick)
     spot_sell_start, _ = get('spot', f'{pair}_sell_start', 1)
     spot_buy_start, _ = get('spot', f'{pair}_buy_start', 1)
 
@@ -249,8 +249,8 @@ def spot_market_order(info, args):
                 break
 
             price = buy[3]
-            dx_base = min(buy[1], -buy[2] * quote_scale // price, -base_value)
-            dx_quote = dx_base * price // quote_scale
+            dx_base = min(buy[1], -buy[2] * base_scale // price, -base_value)
+            dx_quote = dx_base * price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -262,7 +262,7 @@ def spot_market_order(info, args):
             base_balance -= dx_base
             # base_sum += dx_base
 
-            if buy[1] == 0 or buy[1] // price == 0:
+            if buy[1] == 0 or buy[1] * price // base_scale == 0:
                 spot_buy_start = _remove_order(addr, pair, buy, spot_buy_start, 'buy')
 
                 if buy[2] < 0:
@@ -309,8 +309,8 @@ def spot_market_order(info, args):
                 break
 
             price = sell[3]
-            dx_base = min(-sell[1], quote_balance * quote_scale // price, base_value)
-            dx_quote = dx_base * price // quote_scale
+            dx_base = min(-sell[1], quote_balance * base_scale // price, base_value)
+            dx_quote = dx_base * price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -323,7 +323,7 @@ def spot_market_order(info, args):
             quote_balance -= dx_quote
             # quote_sum += dx_quote
 
-            if sell[1] == 0 or sell[1] // price == 0:
+            if sell[1] == 0 or sell[1] * price // base_scale == 0:
                 spot_sell_start = _remove_order(addr, pair, sell, spot_sell_start, 'sell')
 
                 if sell[1] < 0:
@@ -370,8 +370,8 @@ def spot_market_order(info, args):
                 break
 
             price = sell[3]
-            dx_base = min(-sell[1], -quote_value * quote_scale // price)
-            dx_quote = dx_base * price // quote_scale
+            dx_base = min(-sell[1], -quote_value * base_scale // price)
+            dx_quote = dx_base * price // base_scale
             if dx_base == 0 or  dx_quote == 0:
                 break
             if quote_balance - dx_quote < 0:
@@ -384,7 +384,7 @@ def spot_market_order(info, args):
             quote_balance -= dx_quote
             # quote_sum += dx_quote
 
-            if sell[1] == 0 or sell[1] // price == 0:
+            if sell[1] == 0 or sell[1] * price // base_scale == 0:
                 spot_sell_start = _remove_order(addr, pair, sell, spot_sell_start, 'sell')
 
                 if sell[1] < 0:
@@ -431,8 +431,8 @@ def spot_market_order(info, args):
                 break
 
             price = buy[3]
-            dx_base = min(buy[1], base_balance, quote_value * quote_scale // price)
-            dx_quote = dx_base * price // quote_scale
+            dx_base = min(buy[1], base_balance, quote_value * base_scale // price)
+            dx_quote = dx_base * price // base_scale
             if dx_base == 0 or dx_quote == 0:
                 break
             if base_balance - dx_base < 0:
@@ -445,7 +445,7 @@ def spot_market_order(info, args):
             base_balance -= dx_base
             # base_sum += dx_base
 
-            if buy[1] == 0 or buy[1] // price == 0:
+            if buy[1] == 0 or buy[1] * price // base_scale == 0:
                 spot_buy_start = _remove_order(addr, pair, buy, spot_buy_start, 'buy')
 
                 if buy[2] < 0:
@@ -480,7 +480,7 @@ def spot_market_order(info, args):
         put(addr, base_tick, 'balance', balance, addr)
 
     if take_base > 0:
-        price = take_quote * quote_scale // take_base
+        price = take_quote * base_scale // take_base
         event('SpotMarketTake', [pair, buy_or_sell, addr, take_base, price])
 
 
@@ -644,3 +644,4 @@ def spot_vote_manager(info, args):
         put(addr, 'committee', 'proposal', [], proposal_key)
     else:
         put(addr, 'committee', 'proposal', list(votes), proposal_key)
+
