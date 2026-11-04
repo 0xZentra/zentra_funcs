@@ -51,32 +51,8 @@ def _chess_rc_to_square(r, c):
     rnk = str(8 - r)
     return f + rnk
 
-def _chess_empty_board():
-    return [['.' for _ in range(8)] for _ in range(8)]
-
 def _chess_clone_board(board):
     return [list(row) for row in board]
-
-def _chess_fen_to_board(fen):
-    parts = fen.split()
-    board_fen = parts[0] if len(parts) > 0 else "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
-    board = _chess_empty_board()
-    r = 0
-    c = 0
-    for ch in board_fen:
-        if ch == '/':
-            r += 1
-            c = 0
-            if r >= 8:
-                break
-            continue
-        if ch.isdigit():
-            c += int(ch)
-            continue
-        if c < 8:
-            board[r][c] = ch
-            c += 1
-    return board
 
 def _chess_find_king(board, side):
     target = 'K' if side == 'w' else 'k'
@@ -584,7 +560,15 @@ def chess_create_game(info, args):
     if stake > 0:
         _chess_escrow_stake(addr, game_id, quote_tick, stake)
 
-    board = _chess_fen_to_board(CHESS_START_FEN)
+    board = [['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+             ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+             ['.', '.', '.', '.', '.', '.', '.', '.'],
+             ['.', '.', '.', '.', '.', '.', '.', '.'],
+             ['.', '.', '.', '.', '.', '.', '.', '.'],
+             ['.', '.', '.', '.', '.', '.', '.', '.'],
+             ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+             ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']]
+
     state = {
         'chess_board': board,
         'chess_turn': 'w',
