@@ -7,8 +7,6 @@ Move format: like "g4d7" or "g7g8q" (from+to, optional promotion)
 
 # ==================== Constants ====================
 
-CHESS_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
 CHESS_PIECE_TYPES = set(['p','n','b','r','q','k','P','N','B','R','Q','K'])
 CHESS_KNIGHT_DIRS = [(-2,-1),(-2,1),(-1,-2),(-1,2),(1,-2),(1,2),(2,-1),(2,1)]
 CHESS_KING_DIRS = [(-1,-1),(-1,0),(-1,1),(0,-1),(0,1),(1,-1),(1,0),(1,1)]
@@ -50,9 +48,6 @@ def _chess_rc_to_square(r, c):
     f = chr(ord('a') + c)
     rnk = str(8 - r)
     return f + rnk
-
-def _chess_clone_board(board):
-    return [list(row) for row in board]
 
 def _chess_find_king(board, side):
     target = 'K' if side == 'w' else 'k'
@@ -171,8 +166,8 @@ def _chess_is_in_check(board, side):
     opp = 'b' if side == 'w' else 'w'
     return _chess_square_attacked(board, kr, kc, opp)
 
-def _chess_apply_move(board, fr, fc, tr, tc, promo=None):
-    nb = _chess_clone_board(board)
+def _chess_apply_move(board, fr, fc, tr, tc, promo):
+    nb = [list(row) for row in board]
     p = nb[fr][fc]
     side = _chess_side_of(p)
     nb[tr][tc] = p
@@ -198,7 +193,7 @@ def _chess_legal_moves_for_side(board, side):
                 continue
             pm = _chess_pseudo_moves(board, fr, fc)
             for tr, tc in pm:
-                nb, mp = _chess_apply_move(board, fr, fc, tr, tc)
+                nb, mp = _chess_apply_move(board, fr, fc, tr, tc, None)
                 if not _chess_is_in_check(nb, side):
                     res.append((fr, fc, tr, tc))
     return res
@@ -695,7 +690,7 @@ def chess_make_move(info, args):
             break
     assert found, "chess_illegal_move"
 
-    nb, mp = _chess_apply_move(board, fr, fc, tr, tc, promo=promo)
+    nb, mp = _chess_apply_move(board, fr, fc, tr, tc, promo)
     assert not _chess_is_in_check(nb, turn), "chess_illegal_move_leaves_check"
 
     new_state = dict(state)
