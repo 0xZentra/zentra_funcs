@@ -4,6 +4,9 @@ zip101.py - Onchain chess state transition prototype
 All functions and states must be prefixed with `chess_`
 Move format: like "g4d7" or "g7g8q" (from+to, optional promotion)
 Castling: coordinate form, the king goes two squares - "e1g1", "e1c1", "e8g8", "e8c8"
+Draws: stalemate, 100 half-moves without pawn/capture,
+insufficient material (bare kings, K+single minor, same-colour bishops only),
+agreement via chess_agree_draw, and timeout (15 min without a move = loss).
 """
 
 # ==================== Constants ====================
@@ -19,6 +22,14 @@ CHESS_SLIDE_DIRS = CHESS_DIAG_DIRS + CHESS_STRAIGHT_DIRS
 # 10000 == 0.010000 == 1% of each taker buy payment goes to the pot.
 CHESS_PREDICT_FEE_SELECT = 10000
 CHESS_FEE_SCALE_SELECT = 1000000
+# Orders whose residual value is below this (0.01 USDC) are swept as dust.
+CHESS_PREDICT_DUST_SELECT = 10000
+# New orders must have a total value of at least this (1 USDC) to be placed.
+CHESS_PREDICT_MIN_ORDER_SELECT = 1000000
+
+# Time (seconds) after which a player who has not moved is declared to have
+# abandoned the game. 15 minutes matches common online blitz rhythms.
+CHESS_TIMEOUT_SECONDS = 900
 
 # ==================== Helpers ====================
 
@@ -197,7 +208,7 @@ def _chess_update_castling_rights(rights, p, fr, fc, tr, tc):
     """King moving drops both rights of its side; a rook leaving a home
     corner drops the matching right, and so does a move landing on the
     corner (which can only mean the rook there had left or was captured)."""
-    new_rights = list(rights)
+    new_rights = list(rights) if rights is not None else []
     if p == 'K':
         new_rights = [x for x in new_rights if x not in ('K', 'Q')]
     elif p == 'k':
@@ -205,7 +216,80 @@ def _chess_update_castling_rights(rights, p, fr, fc, tr, tc):
     for corner, flag in [((7, 7), 'K'), ((7, 0), 'Q'), ((0, 7), 'k'), ((0, 0), 'q')]:
         if (fr, fc) == corner or (tr, tc) == corner:
             new_rights = [x for x in new_rights if x != flag]
+    if not isinstance(new_rights, list):
+        new_rights = list(new_rights)
     return new_rights
+
+
+def _chess_insufficient_material(board):
+    kings = 0
+    pieces = []
+    for r in range(8):
+        for c in range(8):
+            p = board[r][c]
+            if p == '.':
+                continue
+            if p in ['K', 'k']:
+                kings += 1
+                continue
+            pieces.append((p, r + c))
+    if kings != 2:
+        return False
+    if len(pieces) == 0:
+        return True
+    if len(pieces) == 1 and pieces[0][0] in ['N', 'n', 'B', 'b']:
+        return True
+    for p, color in pieces:
+        if p not in ['B', 'b']:
+            return False
+    colors = set()
+    for p, color in pieces:
+        colors.add(color % 2)
+    if len(colors) == 1:
+        return True
+    return False
+
+
+def _chess_has_mating_material(board, side):
+    """Whether `side` holds enough material to force checkmate (used for
+    timeout adjudication, where only the winner's material matters)."""
+    pieces = []
+    for r in range(8):
+        for c in range(8):
+            pc = board[r][c]
+            if pc == '.':
+                continue
+            if _chess_side_of(pc) != side:
+                continue
+            if pc in ['K', 'k']:
+                continue
+            pieces.append(pc)
+    # Any pawn can promote, and any queen/rook already mates.
+    for pc in pieces:
+        if pc in ['P', 'p', 'Q', 'q', 'R', 'r']:
+            return True
+    bishops = 0
+    knights = 0
+    for pc in pieces:
+        if pc in ['B', 'b']:
+            bishops += 1
+        elif pc in ['N', 'n']:
+            knights += 1
+    # Two bishops (or bishop + knight) can force mate; two knights cannot.
+    if bishops >= 2:
+        return True
+    if bishops >= 1 and knights >= 1:
+        return True
+    return False
+
+
+def _chess_draw_reason(nb, new_turn, new_rights, halfmove):
+    if _chess_insufficient_material(nb):
+        return 'chess_insufficient_material'
+    if halfmove >= 100:
+        return 'chess_fifty_move_rule'
+    return None
+
 
 def _chess_apply_move(board, fr, fc, tr, tc, promo):
     nb = [list(row) for row in board]
@@ -312,26 +396,30 @@ def _chess_escrow_stake(addr, game_id, quote_tick, stake):
 
 def _chess_stake_settle(game_id, state):
     """Pay the staked pot out once the game has a final result:
-    winner takes both stakes, a draw refunds each player's own stake."""
-    stake = int(state.get('chess_stake', 0) or 0)
-    if stake <= 0:
-        return
+    winner takes the whole pot (stakes plus accumulated market fees), a draw
+    splits it evenly. The pot balance is read live so fees collected during
+    the game are included in the payout."""
     # The stake token is read from the game state on purpose: by settle time
     # the predict settlement has already wiped the game_id's quote_token key.
     quote_tick = state.get('chess_stake_token')
     assert quote_tick, 'chess_stake_token_missing'
+    pot_balance, _ = get(quote_tick, 'balance', 0, f'pot_chess_stake:{game_id}')
+    if pot_balance <= 0:
+        return
     result = state.get('chess_result')
     if result == 'chess_white_wins':
-        _chess_stake_pot(game_id, quote_tick, -2 * stake)
-        _update_quote_balance(state['chess_white'], quote_tick, 2 * stake)
+        _chess_stake_pot(game_id, quote_tick, -pot_balance)
+        _update_quote_balance(state['chess_white'], quote_tick, pot_balance)
     elif result == 'chess_black_wins':
-        _chess_stake_pot(game_id, quote_tick, -2 * stake)
-        _update_quote_balance(state['chess_black'], quote_tick, 2 * stake)
+        _chess_stake_pot(game_id, quote_tick, -pot_balance)
+        _update_quote_balance(state['chess_black'], quote_tick, pot_balance)
     else:
-        _chess_stake_pot(game_id, quote_tick, -stake)
-        _update_quote_balance(state['chess_white'], quote_tick, stake)
-        _chess_stake_pot(game_id, quote_tick, -stake)
-        _update_quote_balance(state['chess_black'], quote_tick, stake)
+        half = pot_balance // 2
+        rest = pot_balance - half
+        _chess_stake_pot(game_id, quote_tick, -half)
+        _update_quote_balance(state['chess_white'], quote_tick, half)
+        _chess_stake_pot(game_id, quote_tick, -rest)
+        _update_quote_balance(state['chess_black'], quote_tick, rest)
 
 def _decimal(tick):
     """On-chain token decimals, used to scale quote raw amounts back to units."""
@@ -343,6 +431,11 @@ def _insert_order(addr, pair, order_type, order_start, order_new, quote_value, b
     assert order_type in ['buy', 'sell']
     price = - quote_value * quote_scale // base_value
     assert 0 < price < quote_scale, "price must be between 0 and 1"
+    # Reject orders whose total value is below the minimum (1 USDC).
+    if order_type == 'sell':
+        assert -base_value * price // quote_scale >= CHESS_PREDICT_MIN_ORDER_SELECT, "order too small"
+    else:
+        assert base_value * price // quote_scale >= CHESS_PREDICT_MIN_ORDER_SELECT, "order too small"
     order_id = order_start
     while True:
         order, _ = get('chess_predict', f'{pair}_{order_type}', None, str(order_id))
@@ -404,6 +497,12 @@ def _remove_order(addr, pair, order, order_start, buy_or_sell):
 
     if order[4] is not None and order[5] is None:
         order_start = order[4]
+        put(addr, 'chess_predict', f'{pair}_{buy_or_sell}_start', order_start)
+
+    elif order[4] is None and order[5] is not None:
+        # Removing the head of the list: advance the start pointer to the
+        # next node so subsequent traversals do not start on a deleted node.
+        order_start = order[5]
         put(addr, 'chess_predict', f'{pair}_{buy_or_sell}_start', order_start)
 
     elif order[4] is None and order[5] is None:
@@ -631,6 +730,9 @@ def chess_create_game(info, args):
         'chess_castling': ['K', 'Q', 'k', 'q'],
         # Counts completed plies only. Creating or joining a game is not a move.
         'chess_move_count': 0,
+        'chess_halfmove': 0,
+        'chess_last_move_time': None,
+        'chess_draw_offered_by': None,
         'chess_white': addr,
         'chess_black': opp,
         # A game cannot be played until the black player has joined (and, when
@@ -678,6 +780,8 @@ def chess_join_game(info, args):
     new_state = dict(state)
     new_state['chess_black'] = addr
     new_state['chess_status'] = 'chess_active'
+    # White is on move first; the timeout clock starts at join time.
+    new_state['chess_last_move_time'] = int(info['timestamp'])
     # Preserve the original state owner (the white player) for the game record.
     put(owner or state['chess_white'], 'chess', 'chess_state', new_state, game_id)
     event('ChessGameJoined', [game_id, addr, stake])
@@ -740,8 +844,7 @@ def chess_make_move(info, args):
     assert p != '.', "chess_empty_from"
     assert _chess_side_of(p) == turn, "chess_wrong_side"
 
-    rights = state['chess_castling']
-
+    rights = state.get('chess_castling', []) or []
     # Promotion is explicit for all non-queen choices.  A missing promotion
     # piece keeps the traditional default-to-queen behavior, while rook,
     # bishop, and knight are also supported (for example: g7g8n).
@@ -768,6 +871,16 @@ def chess_make_move(info, args):
     new_state['chess_turn'] = 'b' if turn == 'w' else 'w'
     new_state['chess_move_count'] = int(state.get('chess_move_count', 0)) + 1
     new_state['chess_castling'] = _chess_update_castling_rights(rights, p, fr, fc, tr, tc)
+    new_state['chess_last_move_time'] = int(info['timestamp'])
+
+    # Fifty-move bookkeeping (half-move clock).
+    captured = (board[tr][tc] != '.')
+    pawn_move = p in ['P', 'p']
+    prev_halfmove = int(state.get('chess_halfmove', 0) or 0)
+    new_state['chess_halfmove'] = 0 if (captured or pawn_move) else (prev_halfmove + 1)
+
+    # Any actual move clears a pending draw agreement.
+    new_state['chess_draw_offered_by'] = None
 
     opp_side = new_state['chess_turn']
     opp_legal = _chess_legal_moves_for_side(nb, opp_side, new_state['chess_castling'])
@@ -786,9 +899,15 @@ def chess_make_move(info, args):
             new_state['chess_result'] = 'chess_draw'
             new_state['chess_winner'] = None
     else:
-        new_state['chess_status'] = 'chess_active'
-        new_state['chess_result'] = None
-        new_state['chess_winner'] = None
+        draw_reason = _chess_draw_reason(nb, new_state['chess_turn'], new_state['chess_castling'], new_state['chess_halfmove'])
+        if draw_reason is not None:
+            new_state['chess_status'] = draw_reason
+            new_state['chess_result'] = 'chess_draw'
+            new_state['chess_winner'] = None
+        else:
+            new_state['chess_status'] = 'chess_active'
+            new_state['chess_result'] = None
+            new_state['chess_winner'] = None
 
     if new_state['chess_result'] is not None:
         result = 'draw'
@@ -801,8 +920,93 @@ def chess_make_move(info, args):
         _chess_stake_settle(game_id, new_state)
 
     put(addr, 'chess', 'chess_state', new_state, game_id)
-    event('ChessMove', [game_id, addr, mstr.strip().lower(), mp, new_state['chess_turn'], new_state['chess_status'], new_state['chess_result']])
-    return {'chess_ok': True, 'chess_move_count': new_state['chess_move_count'], 'chess_status': new_state['chess_status'], 'chess_result': new_state['chess_result'], 'chess_winner': new_state['chess_winner'], 'chess_turn': new_state['chess_turn']}
+    event('ChessMove', [game_id, addr, mstr.strip().lower(), mp, new_state['chess_turn'], new_state['chess_status'], new_state['chess_result'], new_state['chess_last_move_time']])
+    return {'chess_ok': True, 'chess_move_count': new_state['chess_move_count'], 'chess_status': new_state['chess_status'], 'chess_result': new_state['chess_result'], 'chess_winner': new_state['chess_winner'], 'chess_turn': new_state['chess_turn'], 'chess_last_move_time': new_state['chess_last_move_time']}
+
+def chess_agree_draw(info, args):
+    assert args['f'] == 'chess_agree_draw'
+    sender = info['sender']
+    addr = handle_lookup(sender)
+    a = args.get('a', [])
+    assert len(a) >= 1, 'chess_game_id_required'
+    game_id = str(a[0])
+
+    state, owner = get('chess', 'chess_state', None, game_id)
+    assert state is not None, 'chess_game_not_found'
+    assert state['chess_status'] == 'chess_active', 'chess_game_not_active'
+    assert addr in [state['chess_white'], state['chess_black']], 'chess_not_player'
+
+    offered_by = state.get('chess_draw_offered_by')
+    if offered_by is None:
+        new_state = dict(state)
+        new_state['chess_draw_offered_by'] = addr
+        put(owner or state['chess_white'], 'chess', 'chess_state', new_state, game_id)
+        event('ChessDrawOffered', [game_id, addr])
+        return {'chess_ok': True, 'chess_draw_offer': True}
+
+    assert addr != offered_by, 'chess_draw_already_offered'
+    new_state = dict(state)
+    new_state['chess_status'] = 'chess_agreed_draw'
+    new_state['chess_result'] = 'chess_draw'
+    new_state['chess_winner'] = None
+    new_state['chess_draw_offered_by'] = None
+    _chess_predict_submit(game_id, 'draw')
+    _chess_stake_settle(game_id, new_state)
+    put(owner or state['chess_white'], 'chess', 'chess_state', new_state, game_id)
+    event('ChessDrawAgreed', [game_id, addr])
+    return {'chess_ok': True, 'chess_result': 'chess_draw'}
+
+
+def chess_claim_timeout(info, args):
+    assert args['f'] == 'chess_claim_timeout'
+    sender = info['sender']
+    addr = handle_lookup(sender)
+    a = args.get('a', [])
+    assert len(a) >= 1, 'chess_game_id_required'
+    game_id = str(a[0])
+
+    state, owner = get('chess', 'chess_state', None, game_id)
+    assert state is not None, 'chess_game_not_found'
+    assert state['chess_status'] == 'chess_active', 'chess_game_not_active'
+
+    last_move_time = state.get('chess_last_move_time')
+    assert last_move_time is not None, 'chess_timeout_no_clock'
+    assert int(info['timestamp']) - int(last_move_time) >= CHESS_TIMEOUT_SECONDS, 'chess_timeout_not_reached'
+
+    # The side to move is the one that failed to play in time.
+    timed_out_side = state['chess_turn']
+    winner_side = 'b' if timed_out_side == 'w' else 'w'
+
+    new_state = dict(state)
+    new_state['chess_draw_offered_by'] = None
+    if not _chess_has_mating_material(state['chess_board'], winner_side):
+        # The opponent cannot possibly checkmate: FIDE turns a timeout into
+        # a draw when the winner lacks mating material.
+        new_state['chess_status'] = 'chess_insufficient_material'
+        new_state['chess_result'] = 'chess_draw'
+        new_state['chess_winner'] = None
+    else:
+        new_state['chess_status'] = 'chess_timeout'
+        if winner_side == 'w':
+            new_state['chess_result'] = 'chess_white_wins'
+            new_state['chess_winner'] = new_state.get('chess_white')
+        else:
+            new_state['chess_result'] = 'chess_black_wins'
+            new_state['chess_winner'] = new_state.get('chess_black')
+
+    if new_state['chess_result'] is not None:
+        result = 'draw'
+        if new_state['chess_result'] == 'chess_white_wins':
+            result = 'yes'
+        elif new_state['chess_result'] == 'chess_black_wins':
+            result = 'no'
+        _chess_predict_submit(game_id, result)
+        _chess_stake_settle(game_id, new_state)
+
+    put(owner or state['chess_white'], 'chess', 'chess_state', new_state, game_id)
+    event('ChessTimeout', [game_id, addr, timed_out_side, new_state['chess_status'], new_state['chess_result']])
+    return {'chess_ok': True, 'chess_status': new_state['chess_status'], 'chess_result': new_state['chess_result'], 'chess_winner': new_state['chess_winner']}
+
 
 def chess_predict_limit_order(info, args):
     assert args['f'] == 'chess_predict_limit_order'
@@ -828,6 +1032,46 @@ def chess_predict_limit_order(info, args):
     chess_predict_buy_new, _ = get('chess_predict', f'{pair}_buy_new', 1)
     chess_predict_sell_start, _ = get('chess_predict', f'{pair}_sell_start', 1)
     chess_predict_sell_new, _ = get('chess_predict', f'{pair}_sell_new', 1)
+
+    # Sweep dust buy orders.
+    _bid = chess_predict_buy_start
+    while True:
+        _buy, _ = get('chess_predict', f'{pair}_buy', None, str(_bid))
+        if _buy is None:
+            break
+        _price = _buy[3]
+        if -_buy[2] < CHESS_PREDICT_DUST_SELECT or _buy[1] * _price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+            chess_predict_buy_start = _remove_order(addr, pair, _buy, chess_predict_buy_start, 'buy')
+            if _buy[2] < 0:
+                _update_quote_balance(_buy[0], quote_tick, -_buy[2])
+            put(_buy[0], 'chess_predict', f'{pair}_buy', None, str(_bid))
+            if _buy[4] is None:
+                break
+            _bid = _buy[4]
+            continue
+        if _buy[4] is None:
+            break
+        _bid = _buy[4]
+
+    # Sweep dust sell orders.
+    _sid = chess_predict_sell_start
+    while True:
+        _sell, _ = get('chess_predict', f'{pair}_sell', None, str(_sid))
+        if _sell is None:
+            break
+        _price = _sell[3]
+        if -_sell[1] * _price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+            chess_predict_sell_start = _remove_order(addr, pair, _sell, chess_predict_sell_start, 'sell')
+            if _sell[1] < 0:
+                _update_game_balance(_sell[0], game_id, yes_or_no, -_sell[1])
+            put(_sell[0], 'chess_predict', f'{pair}_sell', None, str(_sid))
+            if _sell[4] is None:
+                break
+            _sid = _sell[4]
+            continue
+        if _sell[4] is None:
+            break
+        _sid = _sell[4]
 
     if base_value < 0 and quote_value > 0:
         buy_or_sell = 'sell'
@@ -883,7 +1127,7 @@ def chess_predict_limit_order(info, args):
             _update_game_balance(buy[0], game_id, yes_or_no, dx_base)
             _update_quote_balance(sell[0], quote_tick, dx_quote)
 
-            if buy[1] == 0:
+            if buy[1] == 0 or -buy[2] < CHESS_PREDICT_DUST_SELECT or buy[1] * buy[3] // quote_scale < CHESS_PREDICT_DUST_SELECT or buy[2] == 0:
                 chess_predict_buy_start = _remove_order(addr, pair, buy, chess_predict_buy_start, 'buy')
 
                 if buy[2] < 0:
@@ -893,13 +1137,13 @@ def chess_predict_limit_order(info, args):
             else:
                 put(buy[0], 'chess_predict', f'{pair}_buy', buy, str(chess_predict_buy_id))
 
-            if sell[1] == 0:
+            if sell[1] == 0 or -sell[1] * sell[3] // quote_scale < CHESS_PREDICT_DUST_SELECT or sell[2] == 0:
                 break
             if buy[4] is None:
                 break
             chess_predict_buy_id = buy[4]
 
-        if sell[1] == 0:
+        if sell[1] == 0 or -sell[1] * sell[3] // quote_scale < CHESS_PREDICT_DUST_SELECT or sell[2] == 0:
             chess_predict_sell_start = _remove_order(addr, pair, sell, chess_predict_sell_start, 'sell')
 
             if sell[1] < 0:
@@ -956,19 +1200,35 @@ def chess_predict_market_order(info, args):
                 break
 
             price = buy[3]
+            # Resting buy order that can never produce a whole quote unit for
+            # the maker (escrow cannot afford 1 share, or 1 share sells for 0
+            # quote units): refund its escrow and drop it, then continue.
+            if -buy[2] < CHESS_PREDICT_DUST_SELECT or buy[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+                chess_predict_buy_start = _remove_order(addr, pair, buy, chess_predict_buy_start, 'buy')
+                if buy[2] < 0:
+                    _update_quote_balance(buy[0], quote_tick, -buy[2])
+                put(buy[0], 'chess_predict', f'{pair}_buy', None, str(chess_predict_buy_id))
+                if buy[4] is None:
+                    break
+                chess_predict_buy_id = buy[4]
+                continue
+
             dx_base = min(buy[1], -buy[2] * quote_scale // price, -base_value)
             dx_quote = dx_base * price // quote_scale
-            if dx_base == 0 or dx_quote == 0:
-                break
-            if base_balance - dx_base < 0:
-                break
+            if dx_base == 0 or dx_quote == 0 or base_balance - dx_base < 0:
+                # Budget exhausted (or insufficient taker balance) for filling;
+                # keep walking the rest of the book to sweep dust orders.
+                if buy[4] is None:
+                    break
+                chess_predict_buy_id = buy[4]
+                continue
             buy[1] -= dx_base
             buy[2] += dx_quote
             take_base += dx_base
             take_quote += dx_quote
             base_balance -= dx_base
 
-            if buy[1] == 0 or buy[1] * quote_scale // price == 0:
+            if buy[1] == 0 or -buy[2] < CHESS_PREDICT_DUST_SELECT or buy[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT or buy[2] == 0:
                 chess_predict_buy_start = _remove_order(addr, pair, buy, chess_predict_buy_start, 'buy')
 
                 if buy[2] < 0:
@@ -1002,12 +1262,26 @@ def chess_predict_market_order(info, args):
                 break
 
             price = sell[3]
-            # Taker pays for up to the remaining budget at the listed price;
-            # 1% (CHESS_PREDICT_FEE_SELECT, 6-decimal units) of each payment
-            # goes to the pot, and only the other 99%
-            # actually buys shares from the book, so the order keeps its
-            # unpaid-for residue.
+            # Dust resting sell order: shares too few to yield 1 quote unit →
+            # refund its maker shares and drop it, then continue.
+            if -sell[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+                chess_predict_sell_start = _remove_order(addr, pair, sell, chess_predict_sell_start, 'sell')
+                if sell[1] < 0:
+                    _update_game_balance(sell[0], game_id, yes_or_no, -sell[1])
+                put(sell[0], 'chess_predict', f'{pair}_sell', None, str(chess_predict_sell_id))
+                if sell[4] is None:
+                    break
+                chess_predict_sell_id = sell[4]
+                continue
+
             paid_shares = min(-sell[1], base_value)
+            if paid_shares == 0:
+                # Taker share budget exhausted for filling; keep walking to
+                # sweep dust orders.
+                if sell[4] is None:
+                    break
+                chess_predict_sell_id = sell[4]
+                continue
             dx_quote_pay = paid_shares * price // quote_scale
             if dx_quote_pay > quote_balance:
                 dx_quote_pay = quote_balance
@@ -1015,7 +1289,11 @@ def chess_predict_market_order(info, args):
             dx_quote = dx_quote_pay - dx_quote_pay * CHESS_PREDICT_FEE_SELECT // CHESS_FEE_SCALE_SELECT
             dx_base = dx_quote * quote_scale // price
             if dx_quote_pay == 0 or dx_base == 0:
-                break
+                # Budget exhausted for filling; keep walking to sweep dust.
+                if sell[4] is None:
+                    break
+                chess_predict_sell_id = sell[4]
+                continue
 
             sell[1] += dx_base
             sell[2] -= dx_quote
@@ -1024,7 +1302,7 @@ def chess_predict_market_order(info, args):
             quote_balance -= dx_quote_pay
             base_value -= paid_shares
 
-            if sell[1] == 0 or sell[1] * quote_scale // price == 0:
+            if sell[1] == 0 or -sell[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT or sell[2] == 0:
                 chess_predict_sell_start = _remove_order(addr, pair, sell, chess_predict_sell_start, 'sell')
                 if sell[1] < 0:
                     _update_game_balance(sell[0], game_id, yes_or_no, -sell[1])
@@ -1034,7 +1312,9 @@ def chess_predict_market_order(info, args):
                 put(sell[0], 'chess_predict', f'{pair}_sell', sell, str(chess_predict_sell_id))
 
             _update_quote_balance(sell[0], quote_tick, dx_quote)
-            _update_pot(game_id, quote_tick, dx_quote_pay - dx_quote)
+            # The 1% taker fee boosts the stake prize pool (winner takes all,
+            # draw splits), not the predict market escrow.
+            _chess_stake_pot(game_id, quote_tick, dx_quote_pay - dx_quote)
             assert base_value >= 0
             _update_game_balance(addr, game_id, yes_or_no, dx_base)
 
@@ -1057,10 +1337,17 @@ def chess_predict_market_order(info, args):
                 break
 
             price = sell[3]
-            # Taker pays from their fixed quote budget (1%, in 6-decimal
-            # units CHESS_PREDICT_FEE_SELECT, of which goes to the pot); only
-            # the paying 99% actually takes shares at the listed price,
-            # leaving the book residue untouched.
+            # Dust resting sell order: cannot yield 1 quote unit → refund + drop.
+            if -sell[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+                chess_predict_sell_start = _remove_order(addr, pair, sell, chess_predict_sell_start, 'sell')
+                if sell[1] < 0:
+                    _update_game_balance(sell[0], game_id, yes_or_no, -sell[1])
+                put(sell[0], 'chess_predict', f'{pair}_sell', None, str(chess_predict_sell_id))
+                if sell[4] is None:
+                    break
+                chess_predict_sell_id = sell[4]
+                continue
+
             dx_quote_pay = -quote_value
             if dx_quote_pay > quote_balance:
                 dx_quote_pay = quote_balance
@@ -1069,7 +1356,11 @@ def chess_predict_market_order(info, args):
             dx_quote = dx_quote_pay - dx_quote_pay * CHESS_PREDICT_FEE_SELECT // CHESS_FEE_SCALE_SELECT
             dx_base = dx_quote * quote_scale // price
             if dx_quote_pay == 0 or dx_base == 0:
-                break
+                # Budget exhausted for filling; keep walking to sweep dust.
+                if sell[4] is None:
+                    break
+                chess_predict_sell_id = sell[4]
+                continue
 
             sell[1] += dx_base
             sell[2] -= dx_quote
@@ -1078,7 +1369,7 @@ def chess_predict_market_order(info, args):
             quote_balance -= dx_quote_pay
             # quote_sum += dx_quote
 
-            if sell[1] == 0 or sell[1] * quote_scale // price == 0:
+            if sell[1] == 0 or -sell[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT or sell[2] == 0:
                 chess_predict_sell_start = _remove_order(addr, pair, sell, chess_predict_sell_start, 'sell')
 
                 if sell[1] < 0:
@@ -1093,7 +1384,9 @@ def chess_predict_market_order(info, args):
                 put(sell[0], 'chess_predict', f'{pair}_sell', sell, str(chess_predict_sell_id))
 
             _update_quote_balance(sell[0], quote_tick, dx_quote)
-            _update_pot(game_id, quote_tick, dx_quote_pay - dx_quote)
+            # The 1% taker fee boosts the stake prize pool (winner takes all,
+            # draw splits), not the predict market escrow.
+            _chess_stake_pot(game_id, quote_tick, dx_quote_pay - dx_quote)
             # balance, _ = get(quote_tick, 'balance', 0, sell[0])
             # balance += dx_quote
             # assert balance >= 0
@@ -1130,12 +1423,26 @@ def chess_predict_market_order(info, args):
                 break
 
             price = buy[3]
+            # Dust resting buy order (escrow can't afford 1 share, or 1 share
+            # sells for 0 quote units): refund escrow + drop, then continue.
+            if -buy[2] < CHESS_PREDICT_DUST_SELECT or buy[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT:
+                chess_predict_buy_start = _remove_order(addr, pair, buy, chess_predict_buy_start, 'buy')
+                if buy[2] < 0:
+                    _update_quote_balance(buy[0], quote_tick, -buy[2])
+                put(buy[0], 'chess_predict', f'{pair}_buy', None, str(chess_predict_buy_id))
+                if buy[4] is None:
+                    break
+                chess_predict_buy_id = buy[4]
+                continue
+
             dx_base = min(buy[1], base_balance, quote_value * quote_scale // price)
             dx_quote = dx_base * price // quote_scale
-            if dx_base == 0 or dx_quote == 0:
-                break
-            if base_balance - dx_base < 0:
-                break
+            if dx_base == 0 or dx_quote == 0 or base_balance - dx_base < 0:
+                # Budget exhausted for filling; keep walking to sweep dust.
+                if buy[4] is None:
+                    break
+                chess_predict_buy_id = buy[4]
+                continue
 
             buy[1] -= dx_base
             buy[2] += dx_quote
@@ -1144,7 +1451,7 @@ def chess_predict_market_order(info, args):
             base_balance -= dx_base
             # base_sum += dx_base
 
-            if buy[1] == 0 or buy[1] * quote_scale // price == 0:
+            if buy[1] == 0 or -buy[2] < CHESS_PREDICT_DUST_SELECT or buy[1] * price // quote_scale < CHESS_PREDICT_DUST_SELECT or buy[2] == 0:
                 chess_predict_buy_start = _remove_order(addr, pair, buy, chess_predict_buy_start, 'buy')
 
                 if buy[2] < 0:

@@ -2,6 +2,7 @@
 import hashlib
 import json
 import getpass
+import sys
 import time
 
 import web3
@@ -21,10 +22,11 @@ if __name__ == '__main__':
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
 
+    vote_no = int(sys.argv[1])
 
     call = {'p': setting.protocol,
-            'f': "function_vote", 
-            'a': [9]}
+            'f': "function_vote",
+            'a': [vote_no]}
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,

@@ -27,13 +27,14 @@ if __name__ == '__main__':
     call = {'p': setting.protocol,
             'f': 'function_snippet',
             'a': [sourcecode]}
+    data = json.dumps(call).encode('utf8')
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': nonce,
-        'data': json.dumps(call).encode('utf8'),
-        'gas': 410000,
+        'data': data,
+        'gas': 21000 + len(data) * 48,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
@@ -58,13 +59,14 @@ if __name__ == '__main__':
     call = {'p': setting.protocol,
             'f': 'function_snippet',
             'a': [sourcecode1]}
+    data = json.dumps(call).encode('utf8')
     transaction = {
         'from': account.address,
         'to': ZEN_ADDR,
         'value': 0,
         'nonce': nonce+1,
-        'data': json.dumps(call).encode('utf8'),
-        'gas': 310000,
+        'data': data,
+        'gas': 21000 + len(data) * 48,
         'gasPrice': 1000000000,
         # 'maxFeePerGas': 3000000000,
         # 'maxPriorityFeePerGas': 0,
