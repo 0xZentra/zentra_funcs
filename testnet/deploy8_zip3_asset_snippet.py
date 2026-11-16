@@ -1,24 +1,49 @@
 
 import hashlib
 import json
-import getpass
+import sys
 import time
+import urllib.request
 
 import web3
 import eth_account
 
-import setting
-
-# PROVIDER_HOST = 'http://127.0.0.1:8545'
-PROVIDER_HOST = setting.rpc_url
-
-w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
+API_BASE = 'https://testnet3.zentra.dev'
 
 ZEN_ADDR = '0x00000000000000000000000000000000007A656e'# hex of 'zen'
 
 sourcecode = open('../funcs/zip3.py', 'r').read()
+snippet_digest = hashlib.sha256(sourcecode.encode('utf8')).hexdigest()
+
+
+def snippet_deployed(digest):
+    prefix = 'base-function-snippet:' + digest
+    url = '%s/api/get_latest_state?prefix=%s' % (API_BASE, prefix)
+    req = urllib.request.Request(
+        url,
+        headers={'User-Agent': 'Mozilla/5.0 (compatible; zentra-script)'},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode('utf8'))
+    except Exception as e:
+        print('Warning: deploy check failed, continuing. API error:', e)
+        return False
+    return data.get('result') is not None
+
 
 if __name__ == '__main__':
+    if snippet_deployed(snippet_digest):
+        print('Snippet already deployed: %s' % snippet_digest)
+        sys.exit(0)
+
+    import setting
+
+    # PROVIDER_HOST = 'http://127.0.0.1:8545'
+    PROVIDER_HOST = setting.rpc_url
+
+    w3 = web3.Web3(web3.Web3.HTTPProvider(PROVIDER_HOST))
+
     account = setting.account
     nonce = w3.eth.get_transaction_count(account.address)
     print(account.address, nonce)
